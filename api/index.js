@@ -5348,10 +5348,10 @@ var require_raw_body = __commonJS({
       if (done) {
         return readStream(stream, encoding, length, limit, wrap(done));
       }
-      return new Promise(function executor(resolve3, reject) {
+      return new Promise(function executor(resolve4, reject) {
         readStream(stream, encoding, length, limit, function onRead(err, buf) {
           if (err) return reject(err);
-          resolve3(buf);
+          resolve4(buf);
         });
       });
     }
@@ -18784,7 +18784,7 @@ var require_view = __commonJS({
     var basename = path3.basename;
     var extname = path3.extname;
     var join = path3.join;
-    var resolve3 = path3.resolve;
+    var resolve4 = path3.resolve;
     module2.exports = View;
     function View(name, options) {
       var opts = options || {};
@@ -18818,7 +18818,7 @@ var require_view = __commonJS({
       debug('lookup "%s"', name);
       for (var i = 0; i < roots.length && !path4; i++) {
         var root = roots[i];
-        var loc = resolve3(root, name);
+        var loc = resolve4(root, name);
         var dir = dirname2(loc);
         var file = basename(loc);
         path4 = this.resolve(dir, file);
@@ -18843,7 +18843,7 @@ var require_view = __commonJS({
       });
       sync = false;
     };
-    View.prototype.resolve = function resolve4(dir, file) {
+    View.prototype.resolve = function resolve5(dir, file) {
       var ext = this.ext;
       var path4 = join(dir, file);
       var stat = tryStat(path4);
@@ -18976,14 +18976,14 @@ var require_etag = __commonJS({
   "../../node_modules/.pnpm/etag@1.8.1/node_modules/etag/index.js"(exports2, module2) {
     "use strict";
     module2.exports = etag;
-    var crypto2 = require("crypto");
+    var crypto3 = require("crypto");
     var Stats = require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash = crypto2.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash = crypto3.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash + '"';
     }
@@ -21102,7 +21102,7 @@ var require_application = __commonJS({
     var compileETag = require_utils3().compileETag;
     var compileQueryParser = require_utils3().compileQueryParser;
     var compileTrust = require_utils3().compileTrust;
-    var resolve3 = require("node:path").resolve;
+    var resolve4 = require("node:path").resolve;
     var once = require_once();
     var Router14 = require_router();
     var slice2 = Array.prototype.slice;
@@ -21156,7 +21156,7 @@ var require_application = __commonJS({
       this.mountpath = "/";
       this.locals.settings = this.settings;
       this.set("view", View);
-      this.set("views", resolve3("views"));
+      this.set("views", resolve4("views"));
       this.set("jsonp callback name", "callback");
       if (env2 === "production") {
         this.enable("view cache");
@@ -22470,17 +22470,17 @@ var require_content_disposition = __commonJS({
 // ../../node_modules/.pnpm/cookie-signature@1.2.2/node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "../../node_modules/.pnpm/cookie-signature@1.2.2/node_modules/cookie-signature/index.js"(exports2) {
-    var crypto2 = require("crypto");
+    var crypto3 = require("crypto");
     exports2.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto2.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto3.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports2.unsign = function(input, secret) {
       if ("string" != typeof input) throw new TypeError("Signed cookie string must be provided.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
       var tentativeValue = input.slice(0, input.lastIndexOf(".")), expectedInput = exports2.sign(tentativeValue, secret), expectedBuffer = Buffer.from(expectedInput), inputBuffer = Buffer.from(input);
-      return expectedBuffer.length === inputBuffer.length && crypto2.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
+      return expectedBuffer.length === inputBuffer.length && crypto3.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
     };
   }
 });
@@ -22673,7 +22673,7 @@ var require_send = __commonJS({
     var extname = path3.extname;
     var join = path3.join;
     var normalize = path3.normalize;
-    var resolve3 = path3.resolve;
+    var resolve4 = path3.resolve;
     var sep = path3.sep;
     var BYTES_RANGE_REGEXP = /^ *bytes=/;
     var MAX_MAXAGE = 60 * 60 * 24 * 365 * 1e3;
@@ -22702,7 +22702,7 @@ var require_send = __commonJS({
       this._maxage = opts.maxAge || opts.maxage;
       this._maxage = typeof this._maxage === "string" ? ms(this._maxage) : Number(this._maxage);
       this._maxage = !isNaN(this._maxage) ? Math.min(Math.max(0, this._maxage), MAX_MAXAGE) : 0;
-      this._root = opts.root ? resolve3(opts.root) : null;
+      this._root = opts.root ? resolve4(opts.root) : null;
     }
     util2.inherits(SendStream, Stream);
     SendStream.prototype.error = function error(status, err) {
@@ -22851,7 +22851,7 @@ var require_send = __commonJS({
           return res;
         }
         parts = normalize(path4).split(sep);
-        path4 = resolve3(path4);
+        path4 = resolve4(path4);
       }
       if (containsDotFile(parts)) {
         debug('%s dotfile "%s"', this._dotfiles, path4);
@@ -23229,7 +23229,7 @@ var require_response = __commonJS({
     var cookie = require_cookie();
     var send = require_send();
     var extname = path3.extname;
-    var resolve3 = path3.resolve;
+    var resolve4 = path3.resolve;
     var vary = require_vary();
     var { Buffer: Buffer2 } = require("node:buffer");
     var res = Object.create(http.ServerResponse.prototype);
@@ -23435,7 +23435,7 @@ var require_response = __commonJS({
       }
       opts = Object.create(opts);
       opts.headers = headers;
-      var fullPath = !opts.root ? resolve3(path4) : path4;
+      var fullPath = !opts.root ? resolve4(path4) : path4;
       return this.sendFile(fullPath, opts, done);
     };
     res.contentType = res.type = function contentType(type) {
@@ -23684,7 +23684,7 @@ var require_serve_static = __commonJS({
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
     var parseUrl = require_parseurl();
-    var resolve3 = require("path").resolve;
+    var resolve4 = require("path").resolve;
     var send = require_send();
     var url = require("url");
     module2.exports = serveStatic;
@@ -23703,7 +23703,7 @@ var require_serve_static = __commonJS({
         throw new TypeError("option setHeaders must be function");
       }
       opts.maxage = opts.maxage || opts.maxAge || 0;
-      opts.root = resolve3(root);
+      opts.root = resolve4(root);
       var onDirectory = redirect ? createRedirectDirectoryListener() : createNotFoundDirectoryListener();
       return function serveStatic2(req, res, next) {
         if (req.method !== "GET" && req.method !== "HEAD") {
@@ -24110,11 +24110,11 @@ var require_lib3 = __commonJS({
 // ../../node_modules/.pnpm/cookie-signature@1.0.6/node_modules/cookie-signature/index.js
 var require_cookie_signature2 = __commonJS({
   "../../node_modules/.pnpm/cookie-signature@1.0.6/node_modules/cookie-signature/index.js"(exports2) {
-    var crypto2 = require("crypto");
+    var crypto3 = require("crypto");
     exports2.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if ("string" != typeof secret) throw new TypeError("Secret string must be provided.");
-      return val + "." + crypto2.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto3.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports2.unsign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Signed cookie string must be provided.");
@@ -24123,7 +24123,7 @@ var require_cookie_signature2 = __commonJS({
       return sha1(mac) == sha1(val) ? str : false;
     };
     function sha1(str) {
-      return crypto2.createHash("sha1").update(str).digest("hex");
+      return crypto3.createHash("sha1").update(str).digest("hex");
     }
   }
 });
@@ -28892,11 +28892,11 @@ function __metadata(metadataKey, metadataValue) {
 }
 function __awaiter(thisArg, _arguments, P, generator) {
   function adopt(value) {
-    return value instanceof P ? value : new P(function(resolve3) {
-      resolve3(value);
+    return value instanceof P ? value : new P(function(resolve4) {
+      resolve4(value);
     });
   }
-  return new (P || (P = Promise))(function(resolve3, reject) {
+  return new (P || (P = Promise))(function(resolve4, reject) {
     function fulfilled(value) {
       try {
         step(generator.next(value));
@@ -28912,7 +28912,7 @@ function __awaiter(thisArg, _arguments, P, generator) {
       }
     }
     function step(result) {
-      result.done ? resolve3(result.value) : adopt(result.value).then(fulfilled, rejected);
+      result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
     }
     step((generator = generator.apply(thisArg, _arguments || [])).next());
   });
@@ -29103,14 +29103,14 @@ function __asyncValues(o) {
   }, i);
   function verb(n) {
     i[n] = o[n] && function(v) {
-      return new Promise(function(resolve3, reject) {
-        v = o[n](v), settle(resolve3, reject, v.done, v.value);
+      return new Promise(function(resolve4, reject) {
+        v = o[n](v), settle(resolve4, reject, v.done, v.value);
       });
     };
   }
-  function settle(resolve3, reject, d, v) {
+  function settle(resolve4, reject, d, v) {
     Promise.resolve(v).then(function(v2) {
-      resolve3({ value: v2, done: d });
+      resolve4({ value: v2, done: d });
     }, reject);
   }
 }
@@ -32997,15 +32997,15 @@ var require_RealtimeChannel = __commonJS({
             }
           }
         } else {
-          return new Promise((resolve3) => {
+          return new Promise((resolve4) => {
             var _a2, _b2, _c;
             const push = this.channelAdapter.push(args.type, args, opts.timeout || this.timeout);
             if (args.type === "broadcast" && !((_c = (_b2 = (_a2 = this.params) === null || _a2 === void 0 ? void 0 : _a2.config) === null || _b2 === void 0 ? void 0 : _b2.broadcast) === null || _c === void 0 ? void 0 : _c.ack)) {
-              resolve3("ok");
+              resolve4("ok");
             }
-            push.receive("ok", () => resolve3("ok"));
-            push.receive("error", () => resolve3("error"));
-            push.receive("timeout", () => resolve3("timed out"));
+            push.receive("ok", () => resolve4("ok"));
+            push.receive("error", () => resolve4("error"));
+            push.receive("timeout", () => resolve4("timed out"));
           });
         }
       }
@@ -33030,8 +33030,8 @@ var require_RealtimeChannel = __commonJS({
        * @category Realtime
        */
       async unsubscribe(timeout = this.timeout) {
-        return new Promise((resolve3) => {
-          this.channelAdapter.unsubscribe(timeout).receive("ok", () => resolve3("ok")).receive("timeout", () => resolve3("timed out")).receive("error", () => resolve3("error"));
+        return new Promise((resolve4) => {
+          this.channelAdapter.unsubscribe(timeout).receive("ok", () => resolve4("ok")).receive("timeout", () => resolve4("timed out")).receive("error", () => resolve4("error"));
         });
       }
       /**
@@ -33258,11 +33258,11 @@ var require_socketAdapter = __commonJS({
         this.socket.connect();
       }
       disconnect(callback, code, reason, timeout = 1e4) {
-        return new Promise((resolve3) => {
-          setTimeout(() => resolve3("timeout"), timeout);
+        return new Promise((resolve4) => {
+          setTimeout(() => resolve4("timeout"), timeout);
           this.socket.disconnect(() => {
             callback();
-            resolve3("ok");
+            resolve4("ok");
           }, code, reason);
         });
       }
@@ -42515,13 +42515,13 @@ var require_bcrypt = __commonJS({
             throw Error("Illegal callback: " + typeof callback);
           _async(callback);
         } else
-          return new Promise(function(resolve3, reject) {
+          return new Promise(function(resolve4, reject) {
             _async(function(err, res) {
               if (err) {
                 reject(err);
                 return;
               }
-              resolve3(res);
+              resolve4(res);
             });
           });
       };
@@ -42550,13 +42550,13 @@ var require_bcrypt = __commonJS({
             throw Error("Illegal callback: " + typeof callback);
           _async(callback);
         } else
-          return new Promise(function(resolve3, reject) {
+          return new Promise(function(resolve4, reject) {
             _async(function(err, res) {
               if (err) {
                 reject(err);
                 return;
               }
-              resolve3(res);
+              resolve4(res);
             });
           });
       };
@@ -42601,13 +42601,13 @@ var require_bcrypt = __commonJS({
             throw Error("Illegal callback: " + typeof callback);
           _async(callback);
         } else
-          return new Promise(function(resolve3, reject) {
+          return new Promise(function(resolve4, reject) {
             _async(function(err, res) {
               if (err) {
                 reject(err);
                 return;
               }
-              resolve3(res);
+              resolve4(res);
             });
           });
       };
@@ -50804,8 +50804,8 @@ var import_express14 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_cookie_parser = __toESM(require_cookie_parser(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
-var import_path3 = __toESM(require("path"), 1);
-var import_fs2 = __toESM(require("fs"), 1);
+var import_path4 = __toESM(require("path"), 1);
+var import_fs3 = __toESM(require("fs"), 1);
 var import_url2 = require("url");
 
 // src/routes/index.ts
@@ -55408,18 +55408,18 @@ function _objectSpread2(e) {
   return e;
 }
 function sleep(ms, signal) {
-  return new Promise((resolve3) => {
+  return new Promise((resolve4) => {
     if (signal === null || signal === void 0 ? void 0 : signal.aborted) {
-      resolve3();
+      resolve4();
       return;
     }
     const id = setTimeout(() => {
       signal === null || signal === void 0 || signal.removeEventListener("abort", onAbort);
-      resolve3();
+      resolve4();
     }, ms);
     function onAbort() {
       clearTimeout(id);
-      resolve3();
+      resolve4();
     }
     signal === null || signal === void 0 || signal.addEventListener("abort", onAbort);
   });
@@ -59811,7 +59811,7 @@ var _getRequestParams = (method, options, parameters, body) => {
   return _objectSpread22(_objectSpread22({}, params), parameters);
 };
 async function _handleRequest(fetcher, method, url, options, parameters, body, namespace) {
-  return new Promise((resolve3, reject) => {
+  return new Promise((resolve4, reject) => {
     fetcher(url, _getRequestParams(method, options, parameters, body)).then((result) => {
       if (!result.ok) throw result;
       if (options === null || options === void 0 ? void 0 : options.noResolveJson) return result;
@@ -59821,7 +59821,7 @@ async function _handleRequest(fetcher, method, url, options, parameters, body, n
         if (!contentType || !contentType.includes("application/json")) return {};
       }
       return result.json();
-    }).then((data) => resolve3(data)).catch((error) => handleError(error, reject, options, namespace));
+    }).then((data) => resolve4(data)).catch((error) => handleError(error, reject, options, namespace));
   });
 }
 function createFetchApi(namespace = "storage") {
@@ -63149,6 +63149,9 @@ if (shouldShowDeprecationWarning()) console.warn("\u26A0\uFE0F  Node.js 20 and b
 
 // src/services/supabase.service.ts
 var import_bcryptjs = __toESM(require_bcryptjs(), 1);
+var import_fs2 = require("fs");
+var import_path2 = require("path");
+var import_crypto = __toESM(require("crypto"), 1);
 var _supabaseClient = null;
 var _lastUrl = void 0;
 var _lastKey = void 0;
@@ -63159,6 +63162,78 @@ function invalidateUserGoogleCache(userId) {
     userGoogleCredsCache.delete(userId);
   } else {
     userGoogleCredsCache.clear();
+  }
+}
+var LOCAL_USERS_FILE = (0, import_path2.resolve)(process.cwd(), "artifacts", "api-server", "local_users.json");
+var ALT_LOCAL_USERS_FILE = (0, import_path2.resolve)(process.cwd(), "local_users.json");
+var TMP_LOCAL_USERS_FILE = "/tmp/local_users.json";
+var _localUsersCache = null;
+function loadLocalUsers() {
+  if (_localUsersCache) {
+    return _localUsersCache;
+  }
+  const paths = [LOCAL_USERS_FILE, ALT_LOCAL_USERS_FILE, TMP_LOCAL_USERS_FILE];
+  for (const p of paths) {
+    try {
+      if ((0, import_fs2.existsSync)(p)) {
+        const raw = (0, import_fs2.readFileSync)(p, "utf-8");
+        const list = JSON.parse(raw);
+        if (Array.isArray(list) && list.length > 0) {
+          _localUsersCache = list;
+          return list;
+        }
+      }
+    } catch {
+    }
+  }
+  const adminHash = import_bcryptjs.default.hashSync(env.adminPassword || "123456", 10);
+  const lawyerHash = import_bcryptjs.default.hashSync(env.appPassword || "12345", 10);
+  const oneYearFromNow = /* @__PURE__ */ new Date();
+  oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+  const initial = [
+    {
+      id: "local-admin",
+      username: env.adminUsername || "123456",
+      email: "admin@law.internal",
+      role: "admin",
+      display_name: "\u0627\u0644\u0645\u0634\u0631\u0641 \u0627\u0644\u0639\u0627\u0645 (\u0645\u062F\u064A\u0631 \u0627\u0644\u0645\u0646\u0638\u0648\u0645\u0629)",
+      status: "active",
+      subscription_end_date: null,
+      subscription_notes: "\u062D\u0633\u0627\u0628 \u0627\u0644\u0645\u0634\u0631\u0641 \u0627\u0644\u0639\u0627\u0645 \u0627\u0644\u062F\u0627\u0626\u0645",
+      has_google_service: false,
+      google_spreadsheet_id: null,
+      google_sheet_name: null,
+      password_hash: adminHash,
+      created_at: (/* @__PURE__ */ new Date()).toISOString()
+    },
+    {
+      id: "local-lawyer-default",
+      username: env.appUsername || "12345",
+      email: "lawyer@law.internal",
+      role: "staff",
+      display_name: "\u0627\u0644\u0645\u062D\u0627\u0645\u064A \u0627\u0644\u0627\u0641\u062A\u0631\u0627\u0636\u064A",
+      status: "active",
+      subscription_end_date: oneYearFromNow.toISOString(),
+      subscription_notes: "\u0627\u0634\u062A\u0631\u0627\u0643 \u0633\u0646\u0648\u064A \u0645\u0639\u062A\u0645\u062F (\u0628\u0627\u0642\u0629 \u0627\u0644\u0645\u0643\u0627\u062A\u0628)",
+      has_google_service: false,
+      google_spreadsheet_id: null,
+      google_sheet_name: null,
+      password_hash: lawyerHash,
+      created_at: (/* @__PURE__ */ new Date()).toISOString()
+    }
+  ];
+  saveLocalUsers(initial);
+  return initial;
+}
+function saveLocalUsers(users) {
+  _localUsersCache = users;
+  const content = JSON.stringify(users, null, 2);
+  const paths = [LOCAL_USERS_FILE, ALT_LOCAL_USERS_FILE, TMP_LOCAL_USERS_FILE];
+  for (const p of paths) {
+    try {
+      (0, import_fs2.writeFileSync)(p, content, "utf-8");
+    } catch {
+    }
   }
 }
 function getSupabaseClient() {
@@ -63196,8 +63271,8 @@ async function ensureDefaultAdmin() {
       return;
     }
     if (count === 0) {
-      const defaultUsername = env.adminUsername || "407171248";
-      const defaultPassword = env.adminPassword || "407171248";
+      const defaultUsername = env.adminUsername || "123456";
+      const defaultPassword = env.adminPassword || "123456";
       const password_hash = await import_bcryptjs.default.hash(defaultPassword, 10);
       const { error: insertErr } = await client.from(tableName).insert([
         {
@@ -63205,7 +63280,8 @@ async function ensureDefaultAdmin() {
           email: `${defaultUsername}@law.local`,
           password_hash,
           role: "admin",
-          display_name: "\u0645\u062F\u064A\u0631 \u0627\u0644\u0646\u0638\u0627\u0645 (\u0627\u0644\u0645\u0634\u0631\u0641 \u0627\u0644\u0639\u0627\u0645)"
+          display_name: "\u0627\u0644\u0645\u0634\u0631\u0641 \u0627\u0644\u0639\u0627\u0645 (\u0645\u062F\u064A\u0631 \u0627\u0644\u0645\u0646\u0638\u0648\u0645\u0629)",
+          status: "active"
         }
       ]);
       if (insertErr) {
@@ -63219,12 +63295,38 @@ async function ensureDefaultAdmin() {
   }
 }
 async function verifySupabaseUser(usernameOrEmail, plainPassword) {
+  const cleanIdentifier = usernameOrEmail.trim().toLowerCase();
   const client = getSupabaseClient();
-  if (!client) return null;
+  if (!client) {
+    const localUsers = loadLocalUsers();
+    const user = localUsers.find(
+      (u) => u.username.toLowerCase() === cleanIdentifier || u.email && u.email.toLowerCase() === cleanIdentifier
+    );
+    if (!user || !user.password_hash) return null;
+    let isValid2 = false;
+    if (user.password_hash.startsWith("$2a$") || user.password_hash.startsWith("$2b$")) {
+      isValid2 = await import_bcryptjs.default.compare(plainPassword, user.password_hash);
+    } else {
+      isValid2 = user.password_hash === plainPassword;
+    }
+    if (!isValid2) return null;
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role || "staff",
+      display_name: user.display_name,
+      status: user.status || "active",
+      subscription_end_date: user.subscription_end_date || null,
+      subscription_notes: user.subscription_notes || null,
+      google_spreadsheet_id: user.google_spreadsheet_id,
+      google_sheet_name: user.google_sheet_name,
+      created_at: user.created_at
+    };
+  }
   try {
     const tableName = env.supabaseTableName;
-    const cleanIdentifier = usernameOrEmail.trim().toLowerCase();
-    const { data, error } = await client.from(tableName).select("id, username, email, role, display_name, password_hash, google_spreadsheet_id, google_sheet_name, created_at").or(`username.ilike.${cleanIdentifier},email.ilike.${cleanIdentifier}`).limit(1);
+    const { data, error } = await client.from(tableName).select("id, username, email, role, display_name, status, subscription_end_date, subscription_notes, password_hash, google_spreadsheet_id, google_sheet_name, created_at").or(`username.ilike.${cleanIdentifier},email.ilike.${cleanIdentifier}`).limit(1);
     if (error || !data || data.length === 0) {
       return null;
     }
@@ -63251,6 +63353,9 @@ async function verifySupabaseUser(usernameOrEmail, plainPassword) {
       email: record.email,
       role: record.role || "staff",
       display_name: record.display_name,
+      status: record.status || "active",
+      subscription_end_date: record.subscription_end_date || null,
+      subscription_notes: record.subscription_notes || null,
       google_spreadsheet_id: record.google_spreadsheet_id,
       google_sheet_name: record.google_sheet_name,
       created_at: record.created_at
@@ -63297,22 +63402,24 @@ async function getUserGoogleCredentials(userId) {
 async function listSupabaseUsers() {
   const client = getSupabaseClient();
   if (!client) {
-    return [
-      {
-        id: "local-admin",
-        username: env.adminUsername || "407171248",
-        email: "admin@law.internal",
-        role: "admin",
-        display_name: "\u0627\u0644\u0645\u0634\u0631\u0641 \u0627\u0644\u0639\u0627\u0645 \u0627\u0644\u0627\u0641\u062A\u0631\u0627\u0636\u064A",
-        has_google_service: false,
-        google_spreadsheet_id: null,
-        google_sheet_name: null,
-        created_at: (/* @__PURE__ */ new Date()).toISOString()
-      }
-    ];
+    const local = loadLocalUsers();
+    return local.map((u) => ({
+      id: u.id,
+      username: u.username,
+      email: u.email,
+      role: u.role || "staff",
+      display_name: u.display_name,
+      status: u.status || "active",
+      subscription_end_date: u.subscription_end_date || null,
+      subscription_notes: u.subscription_notes || null,
+      has_google_service: Boolean(u.google_service_account_json && u.google_service_account_json.trim().length > 10),
+      google_spreadsheet_id: u.google_spreadsheet_id || null,
+      google_sheet_name: u.google_sheet_name || null,
+      created_at: u.created_at
+    }));
   }
   const tableName = env.supabaseTableName;
-  const { data, error } = await client.from(tableName).select("id, username, email, role, display_name, google_service_account_json, google_spreadsheet_id, google_sheet_name, created_at").order("created_at", { ascending: false });
+  const { data, error } = await client.from(tableName).select("id, username, email, role, display_name, status, subscription_end_date, subscription_notes, google_service_account_json, google_spreadsheet_id, google_sheet_name, created_at").order("created_at", { ascending: false });
   if (error) {
     logger.error({ error }, "Failed to list users from Supabase");
     throw new Error(
@@ -63325,6 +63432,9 @@ async function listSupabaseUsers() {
     email: u.email,
     role: u.role || "staff",
     display_name: u.display_name,
+    status: u.status || "active",
+    subscription_end_date: u.subscription_end_date || null,
+    subscription_notes: u.subscription_notes || null,
     has_google_service: Boolean(u.google_service_account_json && u.google_service_account_json.trim().length > 10),
     google_spreadsheet_id: u.google_spreadsheet_id || null,
     google_sheet_name: u.google_sheet_name || null,
@@ -63347,11 +63457,6 @@ function sanitizeGoogleServiceJson(raw) {
   }
 }
 async function createSupabaseUser(input) {
-  const client = getSupabaseClient();
-  if (!client) {
-    throw new Error("Supabase \u063A\u064A\u0631 \u0645\u062A\u0635\u0644. \u064A\u0631\u062C\u0649 \u0625\u062F\u062E\u0627\u0644 Supabase URL \u0648 Key \u0641\u064A \u0635\u0641\u062D\u0629 \u0627\u0644\u0625\u062F\u0627\u0631\u0629 \u0623\u0648\u0644\u0627\u064B.");
-  }
-  const tableName = env.supabaseTableName;
   const username = input.username.trim().toLowerCase();
   const password = input.password.trim();
   if (!username) {
@@ -63361,22 +63466,68 @@ async function createSupabaseUser(input) {
     throw new Error("\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u064A\u062C\u0628 \u0623\u0644\u0627 \u062A\u0642\u0644 \u0639\u0646 4 \u062E\u0627\u0646\u0627\u062A.");
   }
   const sanitizedGoogleJson = sanitizeGoogleServiceJson(input.google_service_account_json);
+  const password_hash = await import_bcryptjs.default.hash(password, 10);
+  const status = input.status || "active";
+  const subscription_end_date = input.subscription_end_date || null;
+  const subscription_notes = input.subscription_notes?.trim() || null;
+  const client = getSupabaseClient();
+  if (!client) {
+    const local = loadLocalUsers();
+    if (local.some((u) => u.username.toLowerCase() === username)) {
+      throw new Error(`\u0627\u0633\u0645 \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 "${username}" \u0645\u0633\u062C\u0644 \u0645\u0633\u0628\u0642\u0627\u064B.`);
+    }
+    const newUser = {
+      id: `local-${import_crypto.default.randomUUID()}`,
+      username,
+      email: input.email?.trim() || null,
+      role: input.role || "staff",
+      display_name: input.display_name?.trim() || username,
+      status,
+      subscription_end_date,
+      subscription_notes,
+      google_service_account_json: sanitizedGoogleJson,
+      google_spreadsheet_id: input.google_spreadsheet_id?.trim() || null,
+      google_sheet_name: input.google_sheet_name?.trim() || null,
+      has_google_service: Boolean(sanitizedGoogleJson),
+      password_hash,
+      created_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    local.unshift(newUser);
+    saveLocalUsers(local);
+    return {
+      id: newUser.id,
+      username: newUser.username,
+      email: newUser.email,
+      role: newUser.role,
+      display_name: newUser.display_name,
+      status: newUser.status,
+      subscription_end_date: newUser.subscription_end_date,
+      subscription_notes: newUser.subscription_notes,
+      has_google_service: newUser.has_google_service,
+      google_spreadsheet_id: newUser.google_spreadsheet_id,
+      google_sheet_name: newUser.google_sheet_name,
+      created_at: newUser.created_at
+    };
+  }
+  const tableName = env.supabaseTableName;
   const { data: existing } = await client.from(tableName).select("id").ilike("username", username).limit(1);
   if (existing && existing.length > 0) {
     throw new Error(`\u0627\u0633\u0645 \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 "${username}" \u0645\u0633\u062C\u0644 \u0645\u0633\u0628\u0642\u0627\u064B.`);
   }
-  const password_hash = await import_bcryptjs.default.hash(password, 10);
   const newUserData = {
     username,
     email: input.email?.trim() || null,
     password_hash,
     role: input.role || "staff",
     display_name: input.display_name?.trim() || username,
+    status,
+    subscription_end_date,
+    subscription_notes,
     google_service_account_json: sanitizedGoogleJson,
     google_spreadsheet_id: input.google_spreadsheet_id?.trim() || null,
     google_sheet_name: input.google_sheet_name?.trim() || null
   };
-  const { data, error } = await client.from(tableName).insert([newUserData]).select("id, username, email, role, display_name, google_spreadsheet_id, google_sheet_name, created_at").single();
+  const { data, error } = await client.from(tableName).insert([newUserData]).select("id, username, email, role, display_name, status, subscription_end_date, subscription_notes, google_spreadsheet_id, google_sheet_name, created_at").single();
   if (error) {
     logger.error({ error }, "Failed to insert user into Supabase");
     throw new Error(`\u0641\u0634\u0644 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645: ${error.message}`);
@@ -63387,6 +63538,9 @@ async function createSupabaseUser(input) {
     email: data.email,
     role: data.role,
     display_name: data.display_name,
+    status: data.status || "active",
+    subscription_end_date: data.subscription_end_date || null,
+    subscription_notes: data.subscription_notes || null,
     has_google_service: Boolean(sanitizedGoogleJson),
     google_spreadsheet_id: data.google_spreadsheet_id,
     google_sheet_name: data.google_sheet_name,
@@ -63396,7 +63550,13 @@ async function createSupabaseUser(input) {
 async function deleteSupabaseUser(id) {
   const client = getSupabaseClient();
   if (!client) {
-    throw new Error("Supabase \u063A\u064A\u0631 \u0645\u062A\u0635\u0644.");
+    const local = loadLocalUsers();
+    const filtered = local.filter((u) => u.id !== id);
+    if (filtered.length === local.length) {
+      throw new Error("\u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F.");
+    }
+    saveLocalUsers(filtered);
+    return;
   }
   invalidateUserGoogleCache(id);
   const tableName = env.supabaseTableName;
@@ -63409,7 +63569,45 @@ async function deleteSupabaseUser(id) {
 async function updateSupabaseUser(id, input) {
   const client = getSupabaseClient();
   if (!client) {
-    throw new Error("Supabase \u063A\u064A\u0631 \u0645\u062A\u0635\u0644.");
+    const local = loadLocalUsers();
+    const index = local.findIndex((u) => u.id === id);
+    if (index === -1) {
+      throw new Error("\u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F.");
+    }
+    const user = local[index];
+    if (input.password && input.password.trim()) {
+      if (input.password.trim().length < 4) {
+        throw new Error("\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u064A\u062C\u0628 \u0623\u0644\u0627 \u062A\u0642\u0644 \u0639\u0646 4 \u062E\u0627\u0646\u0627\u062A.");
+      }
+      user.password_hash = await import_bcryptjs.default.hash(input.password.trim(), 10);
+    }
+    if (input.role) user.role = input.role;
+    if (input.display_name !== void 0) user.display_name = input.display_name.trim() || null;
+    if (input.email !== void 0) user.email = input.email.trim() || null;
+    if (input.status !== void 0) user.status = input.status;
+    if (input.subscription_end_date !== void 0) user.subscription_end_date = input.subscription_end_date;
+    if (input.subscription_notes !== void 0) user.subscription_notes = input.subscription_notes;
+    if (input.google_service_account_json !== void 0) {
+      user.google_service_account_json = sanitizeGoogleServiceJson(input.google_service_account_json);
+      user.has_google_service = Boolean(user.google_service_account_json);
+    }
+    if (input.google_spreadsheet_id !== void 0) user.google_spreadsheet_id = input.google_spreadsheet_id.trim() || null;
+    if (input.google_sheet_name !== void 0) user.google_sheet_name = input.google_sheet_name.trim() || null;
+    saveLocalUsers(local);
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      display_name: user.display_name,
+      status: user.status,
+      subscription_end_date: user.subscription_end_date,
+      subscription_notes: user.subscription_notes,
+      has_google_service: user.has_google_service,
+      google_spreadsheet_id: user.google_spreadsheet_id,
+      google_sheet_name: user.google_sheet_name,
+      created_at: user.created_at
+    };
   }
   const tableName = env.supabaseTableName;
   const updates = {};
@@ -63419,15 +63617,12 @@ async function updateSupabaseUser(id, input) {
     }
     updates.password_hash = await import_bcryptjs.default.hash(input.password.trim(), 10);
   }
-  if (input.role) {
-    updates.role = input.role;
-  }
-  if (input.display_name !== void 0) {
-    updates.display_name = input.display_name.trim() || null;
-  }
-  if (input.email !== void 0) {
-    updates.email = input.email.trim() || null;
-  }
+  if (input.role) updates.role = input.role;
+  if (input.display_name !== void 0) updates.display_name = input.display_name.trim() || null;
+  if (input.email !== void 0) updates.email = input.email.trim() || null;
+  if (input.status !== void 0) updates.status = input.status;
+  if (input.subscription_end_date !== void 0) updates.subscription_end_date = input.subscription_end_date;
+  if (input.subscription_notes !== void 0) updates.subscription_notes = input.subscription_notes?.trim() || null;
   if (input.google_service_account_json !== void 0) {
     updates.google_service_account_json = sanitizeGoogleServiceJson(input.google_service_account_json);
   }
@@ -63441,7 +63636,7 @@ async function updateSupabaseUser(id, input) {
     throw new Error("\u0644\u0627 \u062A\u0648\u062C\u062F \u0628\u064A\u0627\u0646\u0627\u062A \u0644\u0644\u062A\u0639\u062F\u064A\u0644.");
   }
   invalidateUserGoogleCache(id);
-  const { data, error } = await client.from(tableName).update(updates).eq("id", id).select("id, username, email, role, display_name, google_service_account_json, google_spreadsheet_id, google_sheet_name, created_at").single();
+  const { data, error } = await client.from(tableName).update(updates).eq("id", id).select("id, username, email, role, display_name, status, subscription_end_date, subscription_notes, google_service_account_json, google_spreadsheet_id, google_sheet_name, created_at").single();
   if (error) {
     logger.error({ error, id }, "Failed to update user in Supabase");
     throw new Error(`\u0641\u0634\u0644 \u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645: ${error.message}`);
@@ -63452,11 +63647,23 @@ async function updateSupabaseUser(id, input) {
     email: data.email,
     role: data.role,
     display_name: data.display_name,
+    status: data.status || "active",
+    subscription_end_date: data.subscription_end_date || null,
+    subscription_notes: data.subscription_notes || null,
     has_google_service: Boolean(data.google_service_account_json && data.google_service_account_json.trim().length > 10),
     google_spreadsheet_id: data.google_spreadsheet_id,
     google_sheet_name: data.google_sheet_name,
     created_at: data.created_at
   };
+}
+async function toggleUserStatus(id, explicitStatus) {
+  const users = await listSupabaseUsers();
+  const target = users.find((u) => u.id === id);
+  if (!target) {
+    throw new Error("\u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F.");
+  }
+  const newStatus = explicitStatus || (target.status === "suspended" ? "active" : "suspended");
+  return updateSupabaseUser(id, { status: newStatus });
 }
 
 // src/routes/auth.ts
@@ -63474,27 +63681,61 @@ router2.post("/auth/login", loginRateLimiter, attachAuthUser, async (req, res) =
     return;
   }
   const { username, password } = parseResult.data;
-  if (isSupabaseConfigured()) {
-    try {
+  try {
+    if (isSupabaseConfigured()) {
       await ensureDefaultAdmin();
-      const supabaseUser = await verifySupabaseUser(username, password);
-      if (supabaseUser) {
-        setSessionCookie(res, {
-          username: supabaseUser.username,
-          userId: supabaseUser.id,
-          role: supabaseUser.role,
-          displayName: supabaseUser.display_name || supabaseUser.username
-        });
-        res.json({
-          username: supabaseUser.username,
-          role: supabaseUser.role,
-          displayName: supabaseUser.display_name
-        });
-        return;
-      }
-    } catch (err) {
-      logger.error({ err }, "Error authenticating with Supabase");
     }
+    const verifiedUser = await verifySupabaseUser(username, password);
+    if (verifiedUser) {
+      if (verifiedUser.role === "staff") {
+        if (verifiedUser.status === "suspended") {
+          res.status(403).json({
+            error: "\u062A\u0645 \u0625\u064A\u0642\u0627\u0641 \u0627\u0634\u062A\u0631\u0627\u0643 \u0647\u0630\u0627 \u0627\u0644\u062D\u0633\u0627\u0628 \u0645\u0624\u0642\u062A\u0627\u064B \u0645\u0646 \u0642\u0650\u0628\u0644 \u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0645\u0646\u0638\u0648\u0645\u0629. \u064A\u0631\u062C\u0649 \u0627\u0644\u062A\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u0645\u0634\u0631\u0641 \u0627\u0644\u0639\u0627\u0645 \u0644\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0641\u0639\u064A\u0644.",
+            isSuspended: true
+          });
+          return;
+        }
+        if (verifiedUser.subscription_end_date) {
+          const expiryTime = new Date(verifiedUser.subscription_end_date).getTime();
+          const now = Date.now();
+          if (expiryTime < now) {
+            res.status(403).json({
+              error: "\u0639\u0630\u0631\u0627\u064B\u060C \u0627\u0646\u062A\u0647\u062A \u0641\u062A\u0631\u0629 \u0627\u0634\u062A\u0631\u0627\u0643\u0643 \u0641\u064A \u0627\u0644\u0645\u0646\u0638\u0648\u0645\u0629. \u064A\u0631\u062C\u0649 \u0627\u0644\u062A\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u0645\u0634\u0631\u0641 \u0627\u0644\u0639\u0627\u0645 \u0644\u062A\u062C\u062F\u064A\u062F \u0627\u0644\u0627\u0634\u062A\u0631\u0627\u0643.",
+              isExpired: true,
+              subscription_end_date: verifiedUser.subscription_end_date
+            });
+            return;
+          }
+        }
+      }
+      let subscriptionWarning = null;
+      let daysRemaining = null;
+      if (verifiedUser.subscription_end_date) {
+        const diffMs = new Date(verifiedUser.subscription_end_date).getTime() - Date.now();
+        daysRemaining = Math.ceil(diffMs / (1e3 * 60 * 60 * 24));
+        if (daysRemaining <= 3 && daysRemaining >= 0) {
+          subscriptionWarning = `\u062A\u0646\u0628\u064A\u0647: \u064A\u0646\u062A\u0647\u064A \u0627\u0634\u062A\u0631\u0627\u0643\u0643 \u062E\u0644\u0627\u0644 ${daysRemaining === 0 ? "\u0627\u0644\u064A\u0648\u0645" : `${daysRemaining} ${daysRemaining === 1 ? "\u064A\u0648\u0645" : daysRemaining === 2 ? "\u064A\u0648\u0645\u064A\u0646" : "\u0623\u064A\u0627\u0645"}`}. \u064A\u0631\u062C\u0649 \u0627\u0644\u062A\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u0625\u062F\u0627\u0631\u0629 \u0644\u0644\u062A\u062C\u062F\u064A\u062F.`;
+        }
+      }
+      setSessionCookie(res, {
+        username: verifiedUser.username,
+        userId: verifiedUser.id,
+        role: verifiedUser.role,
+        displayName: verifiedUser.display_name || verifiedUser.username
+      });
+      res.json({
+        username: verifiedUser.username,
+        role: verifiedUser.role,
+        displayName: verifiedUser.display_name,
+        status: verifiedUser.status || "active",
+        subscription_end_date: verifiedUser.subscription_end_date,
+        subscriptionWarning,
+        daysRemaining
+      });
+      return;
+    }
+  } catch (err) {
+    logger.error({ err }, "Error authenticating user");
   }
   const validAppUsernames = [env.appUsername, "12345", "lawyer", "5128"];
   const validAppPasswords = [env.appPassword, "12345", "5128"];
@@ -63507,7 +63748,9 @@ router2.post("/auth/login", loginRateLimiter, attachAuthUser, async (req, res) =
     res.json({
       username: username === "12345" ? "12345" : username,
       role: "staff",
-      displayName: "\u0627\u0644\u0645\u062D\u0627\u0645\u064A"
+      displayName: "\u0627\u0644\u0645\u062D\u0627\u0645\u064A",
+      status: "active",
+      subscription_end_date: null
     });
     return;
   }
@@ -63571,13 +63814,37 @@ router2.post("/auth/logout", (_req, res) => {
   clearSessionCookie(res);
   res.status(204).send();
 });
-router2.get("/auth/me", attachAuthUser, requireAuth, (req, res) => {
+router2.get("/auth/me", attachAuthUser, requireAuth, async (req, res) => {
   try {
     const authUser = req.authUser;
+    let subscription_end_date = null;
+    let subscriptionWarning = null;
+    let daysRemaining = null;
+    let status = "active";
+    try {
+      const users = await listSupabaseUsers();
+      const user = users.find((u) => u.id === authUser.userId || u.username === authUser.username);
+      if (user) {
+        status = user.status || "active";
+        subscription_end_date = user.subscription_end_date || null;
+        if (subscription_end_date) {
+          const diffMs = new Date(subscription_end_date).getTime() - Date.now();
+          daysRemaining = Math.ceil(diffMs / (1e3 * 60 * 60 * 24));
+          if (daysRemaining <= 3 && daysRemaining >= 0) {
+            subscriptionWarning = `\u062A\u0646\u0628\u064A\u0647: \u064A\u0646\u062A\u0647\u064A \u0627\u0634\u062A\u0631\u0627\u0643\u0643 \u062E\u0644\u0627\u0644 ${daysRemaining === 0 ? "\u0627\u0644\u064A\u0648\u0645" : `${daysRemaining} ${daysRemaining === 1 ? "\u064A\u0648\u0645" : daysRemaining === 2 ? "\u064A\u0648\u0645\u064A\u0646" : "\u0623\u064A\u0627\u0645"}`}. \u064A\u0631\u062C\u0649 \u0627\u0644\u062A\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u0625\u062F\u0627\u0631\u0629 \u0644\u0644\u062A\u062C\u062F\u064A\u062F.`;
+          }
+        }
+      }
+    } catch {
+    }
     res.json({
       username: authUser.username,
       role: authUser.role || "staff",
       displayName: authUser.displayName || authUser.username,
+      status,
+      subscription_end_date,
+      subscriptionWarning,
+      daysRemaining,
       isSupabase: isSupabaseConfigured()
     });
   } catch (err) {
@@ -65995,12 +66262,12 @@ function delay(ms, signal) {
   if (signal?.aborted) {
     return Promise.reject(createAbortError(signal));
   }
-  return new Promise((resolve3, reject) => {
+  return new Promise((resolve4, reject) => {
     let cleanup = () => {
     };
     const timeout = setTimeout(() => {
       cleanup();
-      resolve3();
+      resolve4();
     }, ms);
     timeout.unref?.();
     if (!signal) {
@@ -81617,7 +81884,7 @@ var import_express8 = __toESM(require_express2(), 1);
 var MAX_DAYS = 366 * 100;
 
 // ../../node_modules/.pnpm/node-cron@4.6.0/node_modules/node-cron/dist/node-cron.js
-var import_path2 = __toESM(require("path"), 1);
+var import_path3 = __toESM(require("path"), 1);
 var import_url = require("url");
 var import_meta = {};
 var tasks2 = /* @__PURE__ */ new Map();
@@ -81650,7 +81917,7 @@ var TaskRegistry = class {
     tasks2.forEach((id) => this.remove(id));
   }
 };
-var daemonPath = (0, import_path2.resolve)((0, import_path2.dirname)((0, import_url.fileURLToPath)(import_meta.url)), "daemon.js");
+var daemonPath = (0, import_path3.resolve)((0, import_path3.dirname)((0, import_url.fileURLToPath)(import_meta.url)), "daemon.js");
 var moduleFilename = (0, import_url.fileURLToPath)(import_meta.url);
 var registry = new TaskRegistry();
 var getTasks = registry.all;
@@ -82343,6 +82610,9 @@ router12.post("/users", requireAdmin, async (req, res) => {
       password,
       role,
       display_name,
+      status,
+      subscription_end_date,
+      subscription_notes,
       google_service_account_json,
       google_spreadsheet_id,
       google_sheet_name
@@ -82357,6 +82627,9 @@ router12.post("/users", requireAdmin, async (req, res) => {
       password,
       role: role === "admin" ? "admin" : "staff",
       display_name,
+      status: status || "active",
+      subscription_end_date: subscription_end_date || null,
+      subscription_notes: subscription_notes || null,
       google_service_account_json,
       google_spreadsheet_id,
       google_sheet_name
@@ -82375,6 +82648,9 @@ router12.patch("/users/:id", requireAdmin, async (req, res) => {
       role,
       display_name,
       email,
+      status,
+      subscription_end_date,
+      subscription_notes,
       google_service_account_json,
       google_spreadsheet_id,
       google_sheet_name
@@ -82384,6 +82660,9 @@ router12.patch("/users/:id", requireAdmin, async (req, res) => {
       role,
       display_name,
       email,
+      status,
+      subscription_end_date,
+      subscription_notes,
       google_service_account_json,
       google_spreadsheet_id,
       google_sheet_name
@@ -82392,6 +82671,17 @@ router12.patch("/users/:id", requireAdmin, async (req, res) => {
   } catch (err) {
     logger.error({ err, id: req.params.id }, "Failed to update user");
     res.status(400).json({ error: err.message || "\u0641\u0634\u0644 \u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645." });
+  }
+});
+router12.post("/users/:id/toggle-status", requireAdmin, async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const { status } = req.body;
+    const updated = await toggleUserStatus(id, status);
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err, id: req.params.id }, "Failed to toggle user status");
+    res.status(400).json({ error: err.message || "\u0641\u0634\u0644 \u062A\u063A\u064A\u064A\u0631 \u062D\u0627\u0644\u0629 \u0627\u0644\u0627\u0634\u062A\u0631\u0627\u0643." });
   }
 });
 router12.delete("/users/:id", requireAdmin, async (req, res) => {
@@ -82429,7 +82719,7 @@ var routes_default = router13;
 // src/app.ts
 var import_meta2 = {};
 var __filename = (0, import_url2.fileURLToPath)(import_meta2.url);
-var __dirname2 = import_path3.default.dirname(__filename);
+var __dirname2 = import_path4.default.dirname(__filename);
 var app = (0, import_express14.default)();
 app.set("trust proxy", 1);
 var pinoHttpMiddleware = import_pino_http.default.default || import_pino_http.default;
@@ -82458,15 +82748,15 @@ app.use(import_express14.default.urlencoded({ extended: true }));
 app.use((0, import_cookie_parser.default)(env.sessionSecret));
 app.use("/api", routes_default);
 var possibleDistPaths = [
-  import_path3.default.resolve(process.cwd(), "dist"),
-  import_path3.default.resolve(process.cwd(), "artifacts/court-session-management/dist"),
-  import_path3.default.resolve(__dirname2, "../../court-session-management/dist"),
-  import_path3.default.resolve(__dirname2, "../dist"),
-  import_path3.default.resolve(__dirname2, "../../dist")
+  import_path4.default.resolve(process.cwd(), "dist"),
+  import_path4.default.resolve(process.cwd(), "artifacts/court-session-management/dist"),
+  import_path4.default.resolve(__dirname2, "../../court-session-management/dist"),
+  import_path4.default.resolve(__dirname2, "../dist"),
+  import_path4.default.resolve(__dirname2, "../../dist")
 ];
 var distPath = possibleDistPaths.find((p) => {
   try {
-    return import_fs2.default.existsSync(import_path3.default.join(p, "index.html"));
+    return import_fs3.default.existsSync(import_path4.default.join(p, "index.html"));
   } catch {
     return false;
   }
@@ -82476,7 +82766,7 @@ if (distPath) {
   app.use(import_express14.default.static(distPath));
   app.use((req, res, next) => {
     if (req.path.startsWith("/api")) return next();
-    res.sendFile(import_path3.default.join(distPath, "index.html"));
+    res.sendFile(import_path4.default.join(distPath, "index.html"));
   });
 } else {
   logger.warn("[Server] No dist/index.html found \u2014 frontend will not be served.");

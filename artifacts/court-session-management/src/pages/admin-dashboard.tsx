@@ -24,6 +24,12 @@ import {
   Sheet,
   FileCode,
   Sparkles,
+  Pause,
+  Play,
+  Calendar,
+  Clock,
+  RotateCw,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,11 +47,78 @@ export interface AppUser {
   email?: string | null;
   role: 'admin' | 'staff';
   display_name?: string | null;
+  status?: 'active' | 'suspended';
+  subscription_end_date?: string | null;
+  subscription_notes?: string | null;
   google_service_account_json?: string | null;
   google_spreadsheet_id?: string | null;
   google_sheet_name?: string | null;
   has_google_service?: boolean;
   created_at?: string;
+}
+
+export function getSubscriptionInfo(user: AppUser) {
+  const isSuspended = user.status === 'suspended';
+  if (isSuspended) {
+    return {
+      statusText: 'موقوف مؤقتاً',
+      badgeColor: 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30',
+      daysLeft: null,
+      isExpiringSoon: false,
+      isExpired: false,
+      isSuspended: true,
+    };
+  }
+
+  if (!user.subscription_end_date) {
+    return {
+      statusText: 'اشتراك دائم / غير محدد',
+      badgeColor: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+      daysLeft: null,
+      isExpiringSoon: false,
+      isExpired: false,
+      isSuspended: false,
+    };
+  }
+
+  const end = new Date(user.subscription_end_date);
+  const now = new Date();
+  // Strip time for clean day comparison
+  const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
+  const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const diffTime = endDay - nowDay;
+  const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (daysLeft < 0) {
+    return {
+      statusText: 'منتهي الصلاحية ❌',
+      badgeColor: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30',
+      daysLeft,
+      isExpiringSoon: false,
+      isExpired: true,
+      isSuspended: false,
+    };
+  }
+
+  if (daysLeft <= 3) {
+    return {
+      statusText: daysLeft === 0 ? 'ينتهي اليوم ⚠️' : `ينتهي خلال ${daysLeft} ${daysLeft === 1 ? 'يوم' : daysLeft === 2 ? 'يومين' : 'أيام'} ⚠️`,
+      badgeColor: 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/40 font-bold animate-pulse',
+      daysLeft,
+      isExpiringSoon: true,
+      isExpired: false,
+      isSuspended: false,
+    };
+  }
+
+  return {
+    statusText: `نشط (متبقي ${daysLeft} يوماً)`,
+    badgeColor: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+    daysLeft,
+    isExpiringSoon: false,
+    isExpired: false,
+    isSuspended: false,
+  };
 }
 
 interface UsersApiResponse {
@@ -62,6 +135,9 @@ create table if not exists public.app_users (
   password_hash text not null,
   role text default 'staff', -- 'admin' | 'staff'
   display_name text,
+  status text default 'active', -- 'active' | 'suspended'
+  subscription_end_date text,    -- YYYY-MM-DD
+  subscription_notes text,
   google_service_account_json text, -- ملف مفتاح Google Service Account JSON الخاص بالمستخدم
   google_spreadsheet_id text,       -- معرف جدول Google Sheets الخاص بالمستخدم
   google_sheet_name text default 'Sessions',
@@ -73,6 +149,9 @@ create index if not exists idx_app_users_username on public.app_users (username)
 create index if not exists idx_app_users_email on public.app_users (email);
 
 -- إذا كان الجدول موجوداً مسبقاً في مشروعك، نفّذ هذه الأوامر لإضافة الأعمدة الجديدة:
+alter table public.app_users add column if not exists status text default 'active';
+alter table public.app_users add column if not exists subscription_end_date text;
+alter table public.app_users add column if not exists subscription_notes text;
 alter table public.app_users add column if not exists google_service_account_json text;
 alter table public.app_users add column if not exists google_spreadsheet_id text;
 alter table public.app_users add column if not exists google_sheet_name text default 'Sessions';`;
@@ -98,7 +177,12 @@ export default function AdminDashboardPage() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
+
+  // Renewal Modal State
+  const [renewDuration, setRenewDuration] = useState<'1m' | '3m' | '6m' | '1y' | 'custom'>('1m');
+  const [customRenewDate, setCustomRenewDate] = useState('');
 
   // Handover Card State for Lawyers
   const [handoverData, setHandoverData] = useState<{
@@ -106,9 +190,25 @@ export default function AdminDashboardPage() {
     displayName?: string;
     password?: string;
     loginUrl: string;
+    subscriptionEndDate?: string | null;
+    subscriptionDurationText?: string;
   } | null>(null);
   const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
   const [copiedHandover, setCopiedHandover] = useState(false);
+
+  // Subscription duration choice for new lawyer
+  const [newSubscriptionDuration, setNewSubscriptionDuration] = useState<'1m' | '3m' | '6m' | '1y' | 'custom' | 'unlimited'>('1m');
+
+  // Helper to compute end date
+  const computeEndDate = (dur: '1m' | '3m' | '6m' | '1y' | 'custom' | 'unlimited') => {
+    if (dur === 'unlimited') return '';
+    const d = new Date();
+    if (dur === '1m') d.setMonth(d.getMonth() + 1);
+    else if (dur === '3m') d.setMonth(d.getMonth() + 3);
+    else if (dur === '6m') d.setMonth(d.getMonth() + 6);
+    else if (dur === '1y') d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().split('T')[0];
+  };
 
   // Form states for Users
   const [newUser, setNewUser] = useState({
@@ -117,6 +217,12 @@ export default function AdminDashboardPage() {
     email: '',
     password: '',
     role: 'staff' as 'admin' | 'staff',
+    subscription_end_date: (() => {
+      const d = new Date();
+      d.setMonth(d.getMonth() + 1);
+      return d.toISOString().split('T')[0];
+    })(),
+    subscription_notes: '',
     google_service_account_json: '',
     google_spreadsheet_id: '',
     google_sheet_name: '',
@@ -128,6 +234,9 @@ export default function AdminDashboardPage() {
     display_name: '',
     email: '',
     role: 'staff' as 'admin' | 'staff',
+    status: 'active' as 'active' | 'suspended',
+    subscription_end_date: '',
+    subscription_notes: '',
     google_service_account_json: '',
     google_spreadsheet_id: '',
     google_sheet_name: '',
@@ -284,11 +393,17 @@ export default function AdminDashboardPage() {
 
     setActionLoading(true);
     try {
+      const payload = {
+        ...newUser,
+        status: 'active',
+        subscription_end_date: newUser.role === 'staff' ? (newUser.subscription_end_date || null) : null,
+      };
+
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(newUser),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -299,11 +414,23 @@ export default function AdminDashboardPage() {
       const savedPassword = newUser.password.trim();
       toast({ title: 'تم التسجيل بنجاح ✅', description: `تم تسجيل المحامي (${data.username}) وتجهيز حسابه للتسليم.` });
       setIsAddOpen(false);
+
+      const durationMap: Record<string, string> = {
+        '1m': 'شهر واحد (30 يوماً)',
+        '3m': '3 أشهر (ربع سنوي)',
+        '6m': '6 أشهر (نصف سنوي)',
+        '1y': 'سنة كاملة (365 يوماً)',
+        'custom': 'تاريخ مخصص',
+        'unlimited': 'اشتراك دائم ومفتوح',
+      };
+
       setHandoverData({
         username: data.username,
         displayName: newUser.display_name || data.username,
         password: savedPassword,
         loginUrl: `${window.location.origin}/login`,
+        subscriptionEndDate: newUser.role === 'staff' ? (newUser.subscription_end_date || null) : null,
+        subscriptionDurationText: durationMap[newSubscriptionDuration] || 'نشط',
       });
       setIsHandoverModalOpen(true);
       setNewUser({
@@ -312,10 +439,13 @@ export default function AdminDashboardPage() {
         email: '',
         password: '',
         role: 'staff',
+        subscription_end_date: computeEndDate('1m'),
+        subscription_notes: '',
         google_service_account_json: '',
         google_spreadsheet_id: '',
         google_sheet_name: '',
       });
+      setNewSubscriptionDuration('1m');
       fetchUsers();
     } catch (err: any) {
       toast({ title: 'فشل العملية', description: err.message, variant: 'destructive' });
@@ -339,12 +469,109 @@ ${handoverData.username}
 🔑 كلمة المرور:
 ${handoverData.password || '12345'}
 
+📅 تفاصيل الاشتراك:
+${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverData.subscriptionEndDate} (${handoverData.subscriptionDurationText || 'نشط'})` : 'اشتراك دائم ومفتوح'}
+
 حسابك جاهز للاستخدام الفوري. يمكنك تسجيل الدخول ومتابعة جلساتك وقضاياك الآن.`;
 
     navigator.clipboard.writeText(text);
     setCopiedHandover(true);
     toast({ title: 'تم النسخ بنجاح 📋', description: 'تم نسخ رسالة تسليم الحساب كاملة وجاهزة للإرسال.' });
     setTimeout(() => setCopiedHandover(false), 2500);
+  };
+
+  // Toggle user status: suspend / reactivate
+  const handleToggleStatus = async (u: AppUser) => {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/users/${u.id}/toggle-status`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'فشل تحديث حالة الاشتراك');
+      }
+      toast({
+        title: data.status === 'suspended' ? 'تم إيقاف الاشتراك مؤقتاً ⏸️' : 'تم تفعيل الاشتراك بنجاح ▶️',
+        description: data.message || `تم تحديث حالة اشتراك (${u.username}).`,
+      });
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Renew or extend subscription
+  const handleRenewSubscription = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+
+    let targetEndDate = '';
+    const now = new Date();
+    let baseDate = now;
+    if (selectedUser.subscription_end_date) {
+      const existing = new Date(selectedUser.subscription_end_date);
+      if (existing.getTime() > now.getTime()) {
+        baseDate = existing;
+      }
+    }
+
+    if (renewDuration === '1m') {
+      const d = new Date(baseDate);
+      d.setMonth(d.getMonth() + 1);
+      targetEndDate = d.toISOString().split('T')[0];
+    } else if (renewDuration === '3m') {
+      const d = new Date(baseDate);
+      d.setMonth(d.getMonth() + 3);
+      targetEndDate = d.toISOString().split('T')[0];
+    } else if (renewDuration === '6m') {
+      const d = new Date(baseDate);
+      d.setMonth(d.getMonth() + 6);
+      targetEndDate = d.toISOString().split('T')[0];
+    } else if (renewDuration === '1y') {
+      const d = new Date(baseDate);
+      d.setFullYear(d.getFullYear() + 1);
+      targetEndDate = d.toISOString().split('T')[0];
+    } else if (renewDuration === 'custom') {
+      if (!customRenewDate) {
+        toast({ title: 'تنبيه', description: 'يرجى تحديد تاريخ انتهاء مخصص.', variant: 'destructive' });
+        return;
+      }
+      targetEndDate = customRenewDate;
+    }
+
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/users/${selectedUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          subscription_end_date: targetEndDate,
+          status: 'active', // Reactivate on renew
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'فشل تجديد الاشتراك');
+      }
+
+      toast({
+        title: 'تم تجديد الاشتراك بنجاح 🔄',
+        description: `تم تمديد اشتراك (${selectedUser.username}) حتى ${targetEndDate} وتفعيله.`,
+      });
+      setIsRenewModalOpen(false);
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
@@ -465,8 +692,22 @@ ${handoverData.password || '12345'}
   });
 
   const adminCount = users.filter((u) => u.role === 'admin').length;
-  const staffCount = users.filter((u) => u.role === 'staff').length;
+  const staffLawyers = users.filter((u) => u.role === 'staff');
+  const activeStaffCount = staffLawyers.filter((u) => {
+    const info = getSubscriptionInfo(u);
+    return !info.isSuspended && !info.isExpired;
+  }).length;
+  const expiringStaffCount = staffLawyers.filter((u) => {
+    const info = getSubscriptionInfo(u);
+    return info.isExpiringSoon || info.isExpired;
+  }).length;
+  const suspendedStaffCount = staffLawyers.filter((u) => u.status === 'suspended').length;
   const customSheetsCount = users.filter((u) => u.has_google_service).length;
+
+  const expiringUsersList = staffLawyers.filter((u) => {
+    const info = getSubscriptionInfo(u);
+    return info.isExpiringSoon || info.isExpired;
+  });
 
   return (
     <div className="min-h-screen bg-background text-foreground" dir="rtl">
@@ -516,11 +757,39 @@ ${handoverData.password || '12345'}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/5 p-5 shadow-xs space-y-2">
             <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
-              <span className="text-xs font-bold">المحامون المشتركون بالنظام</span>
+              <span className="text-xs font-bold">المحامون باشتراك نشط</span>
               <Users className="w-4 h-4" />
             </div>
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-foreground">{staffCount}</p>
-            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">محامٍ مسجل باشتراك نشط</p>
+            <p className="text-3xl font-extrabold text-slate-900 dark:text-foreground">
+              {activeStaffCount} <span className="text-sm font-normal text-muted-foreground">/ {staffLawyers.length}</span>
+            </p>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">اشتراكات سارية وتعمل حالياً</p>
+          </div>
+
+          <div className={`rounded-2xl border p-5 shadow-xs space-y-2 transition-all ${
+            expiringStaffCount > 0
+              ? 'border-amber-500/50 bg-amber-500/15 dark:bg-amber-500/10 ring-1 ring-amber-500/30'
+              : 'border-slate-200/90 dark:border-border bg-white dark:bg-card'
+          }`}>
+            <div className="flex items-center justify-between text-amber-700 dark:text-amber-400">
+              <span className="text-xs font-bold">اشتراكات تنتهي قريباً (≤ 3 أيام)</span>
+              <AlertCircle className={`w-4 h-4 ${expiringStaffCount > 0 ? 'animate-bounce text-amber-600' : ''}`} />
+            </div>
+            <p className="text-3xl font-extrabold text-slate-900 dark:text-foreground">{expiringStaffCount}</p>
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">تتطلب تذكيراً وتجديداً عاجلاً ⚠️</p>
+          </div>
+
+          <div className={`rounded-2xl border p-5 shadow-xs space-y-2 ${
+            suspendedStaffCount > 0
+              ? 'border-rose-500/40 bg-rose-500/10 dark:bg-rose-500/5'
+              : 'border-slate-200/90 dark:border-border bg-white dark:bg-card'
+          }`}>
+            <div className="flex items-center justify-between text-rose-700 dark:text-rose-400">
+              <span className="text-xs font-bold">اشتراكات موقوفة مؤقتاً</span>
+              <Pause className="w-4 h-4" />
+            </div>
+            <p className="text-3xl font-extrabold text-slate-900 dark:text-foreground">{suspendedStaffCount}</p>
+            <p className="text-[11px] text-rose-700 dark:text-rose-400 font-medium">حسابات تم إيقافها مؤقتاً ⏸️</p>
           </div>
 
           <div className="rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-card p-5 shadow-xs space-y-2">
@@ -529,27 +798,66 @@ ${handoverData.password || '12345'}
               <CheckCircle2 className="w-4 h-4 text-primary" />
             </div>
             <p className="text-3xl font-extrabold text-slate-900 dark:text-foreground">{users.length}</p>
-            <p className="text-[11px] text-slate-500 dark:text-muted-foreground font-medium">إجمالي الحسابات في المنظومة</p>
-          </div>
-
-          <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 dark:bg-blue-500/5 p-5 shadow-xs space-y-2">
-            <div className="flex items-center justify-between text-blue-700 dark:text-blue-400">
-              <span className="text-xs font-bold">شيتات سحابية مخصصة</span>
-              <Sheet className="w-4 h-4" />
-            </div>
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-foreground">{customSheetsCount}</p>
-            <p className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">مكاتب محاماة بقواعد Google مستقلة</p>
-          </div>
-
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/5 p-5 shadow-xs space-y-2">
-            <div className="flex items-center justify-between text-amber-700 dark:text-amber-400">
-              <span className="text-xs font-bold">المشرفون العامون</span>
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-foreground">{adminCount}</p>
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">إدارة المشتركين وتسليم الحسابات</p>
+            <p className="text-[11px] text-slate-500 dark:text-muted-foreground font-medium">مشرفون ومحامون بالمنظومة</p>
           </div>
         </div>
+
+        {/* Top Subscription Expiration Alert Banner (≤ 3 days) */}
+        {expiringUsersList.length > 0 && (
+          <div className="rounded-2xl border border-amber-500/50 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-amber-500/5 p-5 shadow-sm space-y-3 animate-in fade-in slide-in-from-top-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/25 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                  <AlertCircle className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-amber-950 dark:text-amber-100 flex items-center gap-2">
+                    <span>تنبيه تلقائي: اشتراكات محامين قريبة من الانتهاء (3 أيام أو أقل ⚠️)</span>
+                    <Badge className="bg-amber-600 text-white font-bold text-[10px] px-2 py-0.5">
+                      {expiringUsersList.length} محامي
+                    </Badge>
+                  </h3>
+                  <p className="text-xs text-amber-900/80 dark:text-amber-300/80 font-medium">
+                    المحامون المذكورون أدناه على وشك انتهاء فترة اشتراكهم أو انتهت بالفعل. يمكنك تمديد الاشتراك وتفعيله بضغطة زر واحدة:
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2.5 pt-1">
+              {expiringUsersList.map((u) => {
+                const info = getSubscriptionInfo(u);
+                return (
+                  <div
+                    key={u.id}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-card border border-amber-500/40 text-xs shadow-xs"
+                  >
+                    <User className="w-3.5 h-3.5 text-amber-600" />
+                    <span className="font-bold text-foreground">{u.display_name || u.username}</span>
+                    <span className={`text-[11px] font-mono font-bold ${info.isExpired ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                      ({info.statusText})
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedUser(u);
+                        setRenewDuration('1m');
+                        setCustomRenewDate('');
+                        setIsRenewModalOpen(true);
+                      }}
+                      className="h-6 px-2 text-[10px] gap-1 font-bold bg-amber-500/10 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 border-amber-500/40"
+                    >
+                      <RotateCw className="w-2.5 h-2.5" />
+                      <span>تجديد الآن 🔄</span>
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex items-center gap-2 border-b border-border pb-1">
@@ -641,13 +949,13 @@ ${handoverData.password || '12345'}
                 <table className="w-full text-start text-xs sm:text-sm">
                   <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold">
                     <tr>
-                      <th className="py-3 px-4 text-start">المستخدم</th>
-                      <th className="py-3 px-4 text-start">الاسم الظاهر</th>
-                      <th className="py-3 px-4 text-start">البريد الإلكتروني</th>
-                      <th className="py-3 px-4 text-start">الصلاحية</th>
-                      <th className="py-3 px-4 text-start">قاعدة Google Sheets</th>
-                      <th className="py-3 px-4 text-start">تاريخ الإنشاء</th>
-                      <th className="py-3 px-4 text-end">الإجراءات</th>
+                      <th className="py-3 px-3 text-start">المستخدم</th>
+                      <th className="py-3 px-3 text-start">الاسم الظاهر</th>
+                      <th className="py-3 px-3 text-start">الصلاحية</th>
+                      <th className="py-3 px-3 text-start">حالة الاشتراك ⚖️</th>
+                      <th className="py-3 px-3 text-start">تاريخ الانتهاء</th>
+                      <th className="py-3 px-3 text-start">قاعدة Google Sheets</th>
+                      <th className="py-3 px-3 text-end">الإجراءات والتحكم</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -673,9 +981,11 @@ ${handoverData.password || '12345'}
                     ) : (
                       filteredUsers.map((u) => {
                         const isCurrent = currentUser?.username === u.username;
+                        const subInfo = getSubscriptionInfo(u);
+
                         return (
                           <tr key={u.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="py-3 px-4 font-mono font-bold text-foreground">
+                            <td className="py-3 px-3 font-mono font-bold text-foreground">
                               <div className="flex items-center gap-2">
                                 <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-sans font-bold text-xs shrink-0">
                                   {u.username.slice(0, 2).toUpperCase()}
@@ -683,18 +993,15 @@ ${handoverData.password || '12345'}
                                 <span>{u.username}</span>
                                 {isCurrent && (
                                   <Badge variant="outline" className="text-[10px] text-amber-500 border-amber-500/30">
-                                    حسابك الحالي
+                                    حسابك
                                   </Badge>
                                 )}
                               </div>
                             </td>
-                            <td className="py-3 px-4 text-muted-foreground">
+                            <td className="py-3 px-3 text-muted-foreground font-medium">
                               {u.display_name || '—'}
                             </td>
-                            <td className="py-3 px-4 font-mono text-xs text-muted-foreground">
-                              {u.email || '—'}
-                            </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-3">
                               {u.role === 'admin' ? (
                                 <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1 text-xs">
                                   <ShieldCheck className="w-3 h-3" />
@@ -703,11 +1010,49 @@ ${handoverData.password || '12345'}
                               ) : (
                                 <Badge variant="secondary" className="gap-1 text-xs">
                                   <User className="w-3 h-3 text-emerald-500" />
-                                  <span>محامي (المشترك)</span>
+                                  <span>محامي</span>
                                 </Badge>
                               )}
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-3">
+                              {u.role === 'admin' ? (
+                                <Badge variant="outline" className="text-xs border-slate-300 dark:border-slate-700">
+                                  دائم (مشرف)
+                                </Badge>
+                              ) : (
+                                <Badge className={`${subInfo.badgeColor} gap-1 text-xs`}>
+                                  {subInfo.isSuspended ? (
+                                    <Pause className="w-3 h-3" />
+                                  ) : subInfo.isExpiringSoon ? (
+                                    <AlertCircle className="w-3 h-3" />
+                                  ) : subInfo.isExpired ? (
+                                    <AlertTriangle className="w-3 h-3" />
+                                  ) : (
+                                    <CheckCircle2 className="w-3 h-3" />
+                                  )}
+                                  <span>{subInfo.statusText}</span>
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="py-3 px-3">
+                              {u.role === 'admin' ? (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              ) : u.subscription_end_date ? (
+                                <div className="space-y-0.5">
+                                  <span className="font-mono text-xs text-foreground font-semibold">
+                                    {u.subscription_end_date}
+                                  </span>
+                                  {u.subscription_notes && (
+                                    <p className="text-[10px] text-muted-foreground truncate max-w-[120px]" title={u.subscription_notes}>
+                                      {u.subscription_notes}
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">غير محدد (مفتوح)</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-3">
                               {u.has_google_service ? (
                                 <div className="space-y-0.5">
                                   <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1 text-[11px]">
@@ -715,7 +1060,7 @@ ${handoverData.password || '12345'}
                                     <span>شيت مخصص</span>
                                   </Badge>
                                   {u.google_spreadsheet_id && (
-                                    <p className="font-mono text-[10px] text-muted-foreground truncate max-w-[120px]" title={u.google_spreadsheet_id}>
+                                    <p className="font-mono text-[10px] text-muted-foreground truncate max-w-[110px]" title={u.google_spreadsheet_id}>
                                       ID: {u.google_spreadsheet_id.slice(0, 8)}...
                                     </p>
                                   )}
@@ -723,21 +1068,58 @@ ${handoverData.password || '12345'}
                               ) : (
                                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                                  <span>الشيت العام للمنظومة</span>
+                                  <span>الشيت العام</span>
                                 </span>
                               )}
                             </td>
-                            <td className="py-3 px-4 text-muted-foreground text-xs">
-                              {u.created_at
-                                ? new Date(u.created_at).toLocaleDateString('ar-SA', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric',
-                                  })
-                                : '—'}
-                            </td>
-                            <td className="py-3 px-4 text-end">
+                            <td className="py-3 px-3 text-end">
                               <div className="flex items-center justify-end gap-1.5">
+                                {u.role === 'staff' && (
+                                  <>
+                                    {u.status === 'suspended' ? (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        title="إعادة تفعيل الاشتراك فوراً"
+                                        onClick={() => handleToggleStatus(u)}
+                                        disabled={actionLoading}
+                                        className="h-8 px-2 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 font-bold gap-1"
+                                      >
+                                        <Play className="w-3.5 h-3.5 fill-current" />
+                                        <span>تفعيل ▶️</span>
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        title="إيقاف الاشتراك مؤقتاً"
+                                        onClick={() => handleToggleStatus(u)}
+                                        disabled={actionLoading}
+                                        className="h-8 px-2 text-xs text-rose-700 dark:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30 font-semibold gap-1"
+                                      >
+                                        <Pause className="w-3.5 h-3.5 fill-current" />
+                                        <span>إيقاف ⏸️</span>
+                                      </Button>
+                                    )}
+
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      title="تجديد أو تمديد فترة الاشتراك"
+                                      onClick={() => {
+                                        setSelectedUser(u);
+                                        setRenewDuration('1m');
+                                        setCustomRenewDate('');
+                                        setIsRenewModalOpen(true);
+                                      }}
+                                      className="h-8 px-2 text-xs text-amber-800 dark:text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/40 font-bold gap-1"
+                                    >
+                                      <RotateCw className="w-3.5 h-3.5" />
+                                      <span>تجديد 🔄</span>
+                                    </Button>
+                                  </>
+                                )}
+
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -748,13 +1130,15 @@ ${handoverData.password || '12345'}
                                       displayName: u.display_name || u.username,
                                       password: '12345',
                                       loginUrl: `${window.location.origin}/login`,
+                                      subscriptionEndDate: u.subscription_end_date || null,
+                                      subscriptionDurationText: subInfo.statusText,
                                     });
                                     setIsHandoverModalOpen(true);
                                   }}
                                   className="h-8 px-2.5 gap-1.5 text-xs text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 font-semibold"
                                 >
                                   <Copy className="w-3.5 h-3.5 text-emerald-600" />
-                                  <span>تسليم الحساب</span>
+                                  <span>تسليم</span>
                                 </Button>
 
                                 <Button
@@ -773,13 +1157,16 @@ ${handoverData.password || '12345'}
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  title="تعديل المستخدم وتخصيص Google Sheets"
+                                  title="تعديل المستخدم والاشتراك"
                                   onClick={() => {
                                     setSelectedUser(u);
                                     setEditUserData({
                                       display_name: u.display_name || '',
                                       email: u.email || '',
                                       role: u.role,
+                                      status: u.status || 'active',
+                                      subscription_end_date: u.subscription_end_date || '',
+                                      subscription_notes: u.subscription_notes || '',
                                       google_service_account_json: '',
                                       google_spreadsheet_id: u.google_spreadsheet_id || '',
                                       google_sheet_name: u.google_sheet_name || '',
@@ -1049,6 +1436,82 @@ ${handoverData.password || '12345'}
                 </div>
               </div>
 
+              {/* Subscription Duration Settings (For Lawyers) */}
+              {newUser.role === 'staff' && (
+                <div className="space-y-3 p-4 rounded-xl border border-amber-500/35 bg-amber-500/5">
+                  <div className="flex items-center justify-between text-amber-700 dark:text-amber-300 font-bold text-xs">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      <span>مدة اشتراك المحامي وفترة الصلاحية</span>
+                    </div>
+                    <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
+                      تنبيه آلي قبل 3 أيام ⚠️
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">مدة الاشتراك الممنوحة:</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {[
+                        { id: '1m', label: 'شهر واحد (30 يوماً)' },
+                        { id: '3m', label: '3 أشهر (ربع سنوي)' },
+                        { id: '6m', label: '6 أشهر (نصف سنوي)' },
+                        { id: '1y', label: 'سنة كاملة (365 يوماً)' },
+                        { id: 'unlimited', label: 'اشتراك دائم ومفتوح' },
+                        { id: 'custom', label: 'تاريخ مخصص 📅' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setNewSubscriptionDuration(opt.id as any);
+                            if (opt.id !== 'custom') {
+                              setNewUser({ ...newUser, subscription_end_date: computeEndDate(opt.id as any) });
+                            }
+                          }}
+                          className={`p-2 rounded-lg border text-xs font-bold transition-all text-center ${
+                            newSubscriptionDuration === opt.id
+                              ? 'border-amber-500 bg-amber-500/15 text-amber-600 dark:text-amber-400 shadow-xs'
+                              : 'border-border text-muted-foreground hover:bg-muted/50'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {newSubscriptionDuration !== 'unlimited' && (
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold flex items-center justify-between">
+                        <span>تاريخ انتهاء الاشتراك (Subscription End Date):</span>
+                        <span className="text-[10px] text-muted-foreground">يمكنك تعديله بالتقويم أدناه</span>
+                      </Label>
+                      <Input
+                        type="date"
+                        value={newUser.subscription_end_date}
+                        onChange={(e) => {
+                          setNewUser({ ...newUser, subscription_end_date: e.target.value });
+                          setNewSubscriptionDuration('custom');
+                        }}
+                        className="font-mono text-sm"
+                        dir="ltr"
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">ملاحظات الاشتراك (اختياري)</Label>
+                    <Input
+                      placeholder="e.g. اشتراك سنوي - مكتب المستشار في الرياض"
+                      value={newUser.subscription_notes}
+                      onChange={(e) => setNewUser({ ...newUser, subscription_notes: e.target.value })}
+                      className="text-xs"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Per-User Google Sheets & Service Account Customization */}
               <div className="space-y-3 p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
                 <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-bold text-xs">
@@ -1261,6 +1724,73 @@ ${handoverData.password || '12345'}
                 </div>
               </div>
 
+              {/* Subscription Status & Expiration for Staff */}
+              {editUserData.role === 'staff' && (
+                <div className="space-y-3 p-4 rounded-xl border border-amber-500/35 bg-amber-500/5">
+                  <div className="flex items-center justify-between text-amber-700 dark:text-amber-300 font-bold text-xs">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      <span>إدارة حالة الاشتراك وتاريخ الانتهاء</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">حالة الاشتراك:</Label>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditUserData({ ...editUserData, status: 'active' })}
+                        className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                          editUserData.status === 'active'
+                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 shadow-xs'
+                            : 'border-border text-muted-foreground'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>نشط (مفعل)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setEditUserData({ ...editUserData, status: 'suspended' })}
+                        className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                          editUserData.status === 'suspended'
+                            ? 'border-rose-500 bg-rose-500/15 text-rose-700 dark:text-rose-300 shadow-xs'
+                            : 'border-border text-muted-foreground'
+                        }`}
+                      >
+                        <Pause className="w-3.5 h-3.5 text-rose-500" />
+                        <span>موقوف مؤقتاً ⏸️</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold flex items-center justify-between">
+                      <span>تاريخ انتهاء الاشتراك:</span>
+                      <span className="text-[10px] text-muted-foreground">اتركه فارغاً للاشتراك المفتوح</span>
+                    </Label>
+                    <Input
+                      type="date"
+                      value={editUserData.subscription_end_date}
+                      onChange={(e) => setEditUserData({ ...editUserData, subscription_end_date: e.target.value })}
+                      className="font-mono text-sm"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">ملاحظات الاشتراك</Label>
+                    <Input
+                      placeholder="e.g. اشتراك سنوي - مكتب الرياض"
+                      value={editUserData.subscription_notes}
+                      onChange={(e) => setEditUserData({ ...editUserData, subscription_notes: e.target.value })}
+                      className="text-xs"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Per-User Google Sheets Customization in Edit */}
               <div className="space-y-3 p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
                 <div className="flex items-center justify-between">
@@ -1328,6 +1858,123 @@ ${handoverData.password || '12345'}
                   className="text-xs text-white bg-primary hover:bg-primary/90"
                 >
                   {actionLoading ? 'جارٍ الحفظ...' : 'حفظ التعديلات'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Quick Subscription Renewal & Extension */}
+      {isRenewModalOpen && selectedUser && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-card border border-amber-500/40 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                  <RotateCw className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">
+                    تجديد وتمديد اشتراك المحامي
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedUser.display_name || selectedUser.username}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsRenewModalOpen(false);
+                  setSelectedUser(null);
+                }}
+                className="text-muted-foreground hover:text-foreground text-sm font-bold px-2 py-1 rounded-md"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Current Status Box */}
+            <div className="p-3.5 rounded-xl border border-border bg-muted/40 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">حالة الاشتراك الحالية:</span>
+                <span className="font-bold text-foreground">
+                  {getSubscriptionInfo(selectedUser).statusText}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">تاريخ الانتهاء الحالي:</span>
+                <span className="font-mono font-bold text-foreground">
+                  {selectedUser.subscription_end_date || 'غير محدد'}
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleRenewSubscription} className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">اختر فترة التمديد الجديدة:</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: '1m', label: '+ شهر واحد (30 يوماً)' },
+                    { id: '3m', label: '+ 3 أشهر (ربع سنوي)' },
+                    { id: '6m', label: '+ 6 أشهر (نصف سنوي)' },
+                    { id: '1y', label: '+ سنة كاملة (365 يوماً)' },
+                    { id: 'custom', label: 'تاريخ مخصص 📅' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setRenewDuration(opt.id as any)}
+                      className={`p-2.5 rounded-xl border text-xs font-bold transition-all text-center ${
+                        renewDuration === opt.id
+                          ? 'border-amber-500 bg-amber-500/15 text-amber-600 dark:text-amber-400 shadow-xs'
+                          : 'border-border text-muted-foreground hover:bg-muted/50'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {renewDuration === 'custom' && (
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">تاريخ الانتهاء الجديد:</Label>
+                  <Input
+                    type="date"
+                    required
+                    value={customRenewDate}
+                    onChange={(e) => setCustomRenewDate(e.target.value)}
+                    className="font-mono text-sm"
+                    dir="ltr"
+                  />
+                </div>
+              )}
+
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
+                ✔ سيتم إعادة تفعيل الحساب فوراً في حال كان موقوفاً أو منتهياً.
+              </p>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setIsRenewModalOpen(false);
+                    setSelectedUser(null);
+                  }}
+                  className="text-xs"
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={actionLoading}
+                  className="text-xs text-white bg-amber-600 hover:bg-amber-700 shadow-md font-bold"
+                >
+                  {actionLoading ? 'جارٍ التجديد...' : 'تأكيد تجديد الاشتراك 🔄'}
                 </Button>
               </div>
             </form>
@@ -1428,10 +2075,19 @@ ${handoverData.password || '12345'}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between pb-2 border-b border-emerald-500/15">
                 <span className="text-xs text-muted-foreground font-semibold">كلمة المرور:</span>
                 <span className="text-sm font-mono font-extrabold text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
                   {handoverData.password || '12345'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground font-semibold">صلاحية الاشتراك:</span>
+                <span className="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                  {handoverData.subscriptionEndDate
+                    ? `${handoverData.subscriptionEndDate} (${handoverData.subscriptionDurationText || 'نشط'})`
+                    : 'اشتراك دائم ومفتوح'}
                 </span>
               </div>
             </div>

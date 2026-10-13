@@ -5,6 +5,7 @@ import {
   createSupabaseUser,
   deleteSupabaseUser,
   updateSupabaseUser,
+  toggleUserStatus,
 } from "../services/supabase.service";
 import { isSupabaseConfigured } from "../config/env";
 import { logger } from "../lib/logger";
@@ -48,6 +49,9 @@ router.post("/users", requireAdmin, async (req, res) => {
       password,
       role,
       display_name,
+      status,
+      subscription_end_date,
+      subscription_notes,
       google_service_account_json,
       google_spreadsheet_id,
       google_sheet_name,
@@ -64,6 +68,9 @@ router.post("/users", requireAdmin, async (req, res) => {
       password,
       role: role === "admin" ? "admin" : "staff",
       display_name,
+      status: status || "active",
+      subscription_end_date: subscription_end_date || null,
+      subscription_notes: subscription_notes || null,
       google_service_account_json,
       google_spreadsheet_id,
       google_sheet_name,
@@ -88,6 +95,9 @@ router.patch("/users/:id", requireAdmin, async (req, res) => {
       role,
       display_name,
       email,
+      status,
+      subscription_end_date,
+      subscription_notes,
       google_service_account_json,
       google_spreadsheet_id,
       google_sheet_name,
@@ -98,6 +108,9 @@ router.patch("/users/:id", requireAdmin, async (req, res) => {
       role,
       display_name,
       email,
+      status,
+      subscription_end_date,
+      subscription_notes,
       google_service_account_json,
       google_spreadsheet_id,
       google_sheet_name,
@@ -107,6 +120,22 @@ router.patch("/users/:id", requireAdmin, async (req, res) => {
   } catch (err: any) {
     logger.error({ err, id: req.params.id }, "Failed to update user");
     res.status(400).json({ error: err.message || "فشل تعديل المستخدم." });
+  }
+});
+
+/**
+ * POST /api/users/:id/toggle-status
+ * Suspends or reactivates a user's subscription (Admin only)
+ */
+router.post("/users/:id/toggle-status", requireAdmin, async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const { status } = req.body;
+    const updated = await toggleUserStatus(id, status);
+    res.json(updated);
+  } catch (err: any) {
+    logger.error({ err, id: req.params.id }, "Failed to toggle user status");
+    res.status(400).json({ error: err.message || "فشل تغيير حالة الاشتراك." });
   }
 });
 

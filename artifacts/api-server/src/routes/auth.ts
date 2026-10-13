@@ -10,7 +10,7 @@ import {
   setSessionCookie,
 } from "../middlewares/auth.middleware";
 import { loginRateLimiter, adminLoginRateLimiter } from "../middlewares/rate-limiter.middleware";
-import { verifySupabaseUser, ensureDefaultAdmin } from "../services/supabase.service";
+import { verifySupabaseUser, ensureDefaultAdmin, listSupabaseUsers } from "../services/supabase.service";
 
 const router: IRouter = Router();
 
@@ -30,32 +30,72 @@ router.post("/auth/login", loginRateLimiter, attachAuthUser, async (req, res) =>
 
   const { username, password } = parseResult.data;
 
-  // 1. If Supabase is configured, authenticate via Supabase app_users table
-  if (isSupabaseConfigured()) {
-    try {
+  // 1. Verify user via Supabase or local store
+  try {
+    if (isSupabaseConfigured()) {
       await ensureDefaultAdmin();
-      const supabaseUser = await verifySupabaseUser(username, password);
-      if (supabaseUser) {
-        setSessionCookie(res, {
-          username: supabaseUser.username,
-          userId: supabaseUser.id,
-          role: supabaseUser.role,
-          displayName: supabaseUser.display_name || supabaseUser.username,
-        });
-
-        res.json({
-          username: supabaseUser.username,
-          role: supabaseUser.role,
-          displayName: supabaseUser.display_name,
-        });
-        return;
-      }
-    } catch (err) {
-      logger.error({ err }, "Error authenticating with Supabase");
     }
+    const verifiedUser = await verifySupabaseUser(username, password);
+    if (verifiedUser) {
+      // Check if suspended
+      if (verifiedUser.role === "staff") {
+        if (verifiedUser.status === "suspended") {
+          res.status(403).json({
+            error: "تم إيقاف اشتراك هذا الحساب مؤقتاً من قِبل إدارة المنظومة. يرجى التواصل مع المشرف العام لإعادة التفعيل.",
+            isSuspended: true,
+          });
+          return;
+        }
+
+        // Check if expired
+        if (verifiedUser.subscription_end_date) {
+          const expiryTime = new Date(verifiedUser.subscription_end_date).getTime();
+          const now = Date.now();
+          if (expiryTime < now) {
+            res.status(403).json({
+              error: "عذراً، انتهت فترة اشتراكك في المنظومة. يرجى التواصل مع المشرف العام لتجديد الاشتراك.",
+              isExpired: true,
+              subscription_end_date: verifiedUser.subscription_end_date,
+            });
+            return;
+          }
+        }
+      }
+
+      // Check 3-day reminder
+      let subscriptionWarning: string | null = null;
+      let daysRemaining: number | null = null;
+      if (verifiedUser.subscription_end_date) {
+        const diffMs = new Date(verifiedUser.subscription_end_date).getTime() - Date.now();
+        daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        if (daysRemaining <= 3 && daysRemaining >= 0) {
+          subscriptionWarning = `تنبيه: ينتهي اشتراكك خلال ${daysRemaining === 0 ? "اليوم" : `${daysRemaining} ${daysRemaining === 1 ? "يوم" : daysRemaining === 2 ? "يومين" : "أيام"}`}. يرجى التواصل مع الإدارة للتجديد.`;
+        }
+      }
+
+      setSessionCookie(res, {
+        username: verifiedUser.username,
+        userId: verifiedUser.id,
+        role: verifiedUser.role,
+        displayName: verifiedUser.display_name || verifiedUser.username,
+      });
+
+      res.json({
+        username: verifiedUser.username,
+        role: verifiedUser.role,
+        displayName: verifiedUser.display_name,
+        status: verifiedUser.status || "active",
+        subscription_end_date: verifiedUser.subscription_end_date,
+        subscriptionWarning,
+        daysRemaining,
+      });
+      return;
+    }
+  } catch (err) {
+    logger.error({ err }, "Error authenticating user");
   }
 
-  // 2. Fallback to env / default credentials (المحامي)
+  // 2. Fallback to env credentials
   const validAppUsernames = [env.appUsername, "12345", "lawyer", "5128"];
   const validAppPasswords = [env.appPassword, "12345", "5128"];
   if (validAppUsernames.includes(username) && validAppPasswords.includes(password)) {
@@ -69,6 +109,8 @@ router.post("/auth/login", loginRateLimiter, attachAuthUser, async (req, res) =>
       username: username === "12345" ? "12345" : username,
       role: "staff",
       displayName: "المحامي",
+      status: "active",
+      subscription_end_date: null,
     });
     return;
   }
@@ -151,13 +193,38 @@ router.post("/auth/logout", (_req, res) => {
   res.status(204).send();
 });
 
-router.get("/auth/me", attachAuthUser, requireAuth, (req, res) => {
+router.get("/auth/me", attachAuthUser, requireAuth, async (req, res) => {
   try {
     const authUser = req.authUser!;
+    let subscription_end_date: string | null = null;
+    let subscriptionWarning: string | null = null;
+    let daysRemaining: number | null = null;
+    let status: "active" | "suspended" = "active";
+
+    try {
+      const users = await listSupabaseUsers();
+      const user = users.find((u) => u.id === authUser.userId || u.username === authUser.username);
+      if (user) {
+        status = user.status || "active";
+        subscription_end_date = user.subscription_end_date || null;
+        if (subscription_end_date) {
+          const diffMs = new Date(subscription_end_date).getTime() - Date.now();
+          daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+          if (daysRemaining <= 3 && daysRemaining >= 0) {
+            subscriptionWarning = `تنبيه: ينتهي اشتراكك خلال ${daysRemaining === 0 ? "اليوم" : `${daysRemaining} ${daysRemaining === 1 ? "يوم" : daysRemaining === 2 ? "يومين" : "أيام"}`}. يرجى التواصل مع الإدارة للتجديد.`;
+          }
+        }
+      }
+    } catch {}
+
     res.json({
       username: authUser.username,
       role: authUser.role || "staff",
       displayName: authUser.displayName || authUser.username,
+      status,
+      subscription_end_date,
+      subscriptionWarning,
+      daysRemaining,
       isSupabase: isSupabaseConfigured(),
     });
   } catch (err) {

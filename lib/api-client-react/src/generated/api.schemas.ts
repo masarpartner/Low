@@ -22,6 +22,17 @@ export interface LoginInput {
 
 export interface AuthUser {
   username: string;
+  id?: string;
+  role?: string;
+  display_name?: string | null;
+  email?: string | null;
+  status?: 'active' | 'suspended';
+  subscription_end_date?: string | null;
+  subscriptionWarning?: string | null;
+  daysRemaining?: number | null;
+  has_custom_sheets?: boolean;
+  google_spreadsheet_id?: string | null;
+  google_sheet_name?: string | null;
 }
 
 export interface DashboardStats {

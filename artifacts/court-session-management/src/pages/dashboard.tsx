@@ -1,5 +1,5 @@
-import { useGetDashboardStats } from '@workspace/api-client-react';
-import { Briefcase, Calendar, CheckCircle2, Clock, ArrowLeft, Sparkles, FileKey, Gavel, XCircle, CheckSquare, Timer, AlertTriangle, ListChecks } from 'lucide-react';
+import { useGetDashboardStats, useGetCurrentUser } from '@workspace/api-client-react';
+import { Briefcase, Calendar, CheckCircle2, Clock, ArrowLeft, Sparkles, FileKey, Gavel, XCircle, CheckSquare, Timer, AlertTriangle, ListChecks, AlertCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
 
@@ -128,6 +128,7 @@ const taskStats = [
 
 export default function DashboardPage() {
   const { data, isLoading, error } = useGetDashboardStats();
+  const { data: currentUser } = useGetCurrentUser();
 
   if (error) {
     return (
@@ -142,6 +143,37 @@ export default function DashboardPage() {
 
   return (
     <div className="p-6 lg:p-8 space-y-8">
+      {/* Subscription Expiration Reminder Banner (3 days or less) */}
+      {currentUser?.subscriptionWarning && (
+        <div className="rounded-2xl border border-amber-500/50 bg-amber-500/10 p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+              <AlertCircle className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-extrabold text-amber-950 dark:text-amber-100">
+                  تذكير انتهاء الاشتراك ⚠️
+                </h3>
+                <span className="text-[10px] bg-amber-500 text-white font-bold px-2 py-0.5 rounded-full">
+                  {currentUser.daysRemaining !== null && currentUser.daysRemaining !== undefined && currentUser.daysRemaining >= 0
+                    ? `متبقي ${currentUser.daysRemaining} أيام`
+                    : 'منتهي'}
+                </span>
+              </div>
+              <p className="text-xs text-amber-900/90 dark:text-amber-300/90 mt-1 font-medium leading-relaxed">
+                {currentUser.subscriptionWarning}
+              </p>
+            </div>
+          </div>
+          {currentUser.subscription_end_date && (
+            <div className="text-xs font-mono font-bold text-amber-800 dark:text-amber-300 bg-amber-500/15 px-3 py-1.5 rounded-xl border border-amber-500/30 shrink-0 self-end sm:self-auto">
+              تاريخ الانتهاء: {currentUser.subscription_end_date}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div className="fade-in-up flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent shadow-sm">
         <div>

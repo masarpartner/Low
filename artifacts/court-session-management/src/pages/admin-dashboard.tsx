@@ -100,6 +100,16 @@ export default function AdminDashboardPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
 
+  // Handover Card State for Lawyers
+  const [handoverData, setHandoverData] = useState<{
+    username: string;
+    displayName?: string;
+    password?: string;
+    loginUrl: string;
+  } | null>(null);
+  const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
+  const [copiedHandover, setCopiedHandover] = useState(false);
+
   // Form states for Users
   const [newUser, setNewUser] = useState({
     username: '',
@@ -286,8 +296,16 @@ export default function AdminDashboardPage() {
         throw new Error(data.error || 'فشل إنشاء المستخدم');
       }
 
-      toast({ title: 'نجاح ✅', description: `تمت إضافة المستخدم (${data.username}) وتخصيص بياناته بنجاح.` });
+      const savedPassword = newUser.password.trim();
+      toast({ title: 'تم التسجيل بنجاح ✅', description: `تم تسجيل المحامي (${data.username}) وتجهيز حسابه للتسليم.` });
       setIsAddOpen(false);
+      setHandoverData({
+        username: data.username,
+        displayName: newUser.display_name || data.username,
+        password: savedPassword,
+        loginUrl: `${window.location.origin}/login`,
+      });
+      setIsHandoverModalOpen(true);
       setNewUser({
         username: '',
         display_name: '',
@@ -304,6 +322,29 @@ export default function AdminDashboardPage() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleCopyHandover = () => {
+    if (!handoverData) return;
+    const text = `السلام عليكم ورحمة الله وبركاته،
+أهلاً بك أستاذ ${handoverData.displayName || handoverData.username}،
+تم بنجاح تفعيل اشتراكك وحسابك في منصة إدارة الجلسات والدعاوى القضائية:
+
+🔗 رابط تسجيل دخول المحامي:
+${handoverData.loginUrl}
+
+👤 اسم المستخدم:
+${handoverData.username}
+
+🔑 كلمة المرور:
+${handoverData.password || '12345'}
+
+حسابك جاهز للاستخدام الفوري. يمكنك تسجيل الدخول ومتابعة جلساتك وقضاياك الآن.`;
+
+    navigator.clipboard.writeText(text);
+    setCopiedHandover(true);
+    toast({ title: 'تم النسخ بنجاح 📋', description: 'تم نسخ رسالة تسليم الحساب كاملة وجاهزة للإرسال.' });
+    setTimeout(() => setCopiedHandover(false), 2500);
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
@@ -455,26 +496,15 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <Link href="/">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 text-xs border-primary/30 text-primary hover:bg-primary/10"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>دخول نظام الجلسات</span>
-              </Button>
-            </Link>
-
             <Button
               variant="ghost"
               size="sm"
               onClick={handleAdminLogout}
               disabled={logoutMutation.isPending}
-              className="gap-2 text-xs text-red-500/80 hover:text-red-600 hover:bg-red-500/10"
+              className="gap-2 text-xs text-red-500/80 hover:text-red-600 hover:bg-red-500/10 font-bold"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span>خروج</span>
+              <span>تسجيل الخروج</span>
             </Button>
           </div>
         </div>
@@ -482,53 +512,42 @@ export default function AdminDashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Stats Grid */}
+        {/* Stats Grid - Focused on Lawyers & Subscriptions */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-xs space-y-2">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-semibold">إجمالي الحسابات</span>
-              <Users className="w-4 h-4 text-primary" />
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/5 p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
+              <span className="text-xs font-bold">المحامون المشتركون بالنظام</span>
+              <Users className="w-4 h-4" />
             </div>
-            <p className="text-2xl font-extrabold text-foreground">{users.length}</p>
-            <p className="text-[11px] text-muted-foreground">مستخدم مسجل في المنظومة</p>
+            <p className="text-3xl font-extrabold text-slate-900 dark:text-foreground">{staffCount}</p>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">محامٍ مسجل باشتراك نشط</p>
           </div>
 
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 shadow-xs space-y-2">
-            <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
-              <span className="text-xs font-semibold">المشرفون (Admins)</span>
-              <ShieldCheck className="w-4 h-4" />
+          <div className="rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-card p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-slate-600 dark:text-muted-foreground">
+              <span className="text-xs font-bold">إجمالي الحسابات المسجلة</span>
+              <CheckCircle2 className="w-4 h-4 text-primary" />
             </div>
-            <p className="text-2xl font-extrabold text-foreground">{adminCount}</p>
-            <p className="text-[11px] text-muted-foreground">صلاحيات إدارة كاملة</p>
+            <p className="text-3xl font-extrabold text-slate-900 dark:text-foreground">{users.length}</p>
+            <p className="text-[11px] text-slate-500 dark:text-muted-foreground font-medium">إجمالي الحسابات في المنظومة</p>
           </div>
 
-          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5 shadow-xs space-y-2">
-            <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
-              <span className="text-xs font-semibold">شيتات مخصصة (Custom)</span>
+          <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 dark:bg-blue-500/5 p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-blue-700 dark:text-blue-400">
+              <span className="text-xs font-bold">شيتات سحابية مخصصة</span>
               <Sheet className="w-4 h-4" />
             </div>
-            <p className="text-2xl font-extrabold text-foreground">{customSheetsCount}</p>
-            <p className="text-[11px] text-muted-foreground">مستخدمون بقواعد بيانات مستقلة</p>
+            <p className="text-3xl font-extrabold text-slate-900 dark:text-foreground">{customSheetsCount}</p>
+            <p className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">مكاتب محاماة بقواعد Google مستقلة</p>
           </div>
 
-          <div className="rounded-2xl border border-sky-500/30 bg-sky-500/5 p-5 shadow-xs space-y-2">
-            <div className="flex items-center justify-between text-sky-600 dark:text-sky-400">
-              <span className="text-xs font-semibold">قاعدة Supabase</span>
-              <Database className="w-4 h-4" />
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/5 p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-amber-700 dark:text-amber-400">
+              <span className="text-xs font-bold">المشرفون العامون</span>
+              <ShieldCheck className="w-4 h-4" />
             </div>
-            <div className="flex items-center gap-2">
-              <div
-                className={`w-2.5 h-2.5 rounded-full ${
-                  isSupabaseConfigured ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
-                }`}
-              />
-              <span className="text-sm font-bold text-foreground">
-                {isSupabaseConfigured ? 'متصلة وسحابية' : 'الوضع الافتراضي'}
-              </span>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              {isSupabaseConfigured ? 'المزامنة السحابية نشطة' : 'يمكنك ضبط Supabase أدناه'}
-            </p>
+            <p className="text-3xl font-extrabold text-slate-900 dark:text-foreground">{adminCount}</p>
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">إدارة المشتركين وتسليم الحسابات</p>
           </div>
         </div>
 
@@ -543,7 +562,7 @@ export default function AdminDashboardPage() {
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>إدارة حسابات المستخدمين والموظفين</span>
+            <span>إدارة حسابات المحامين والمشتركين</span>
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
               {users.length}
             </Badge>
@@ -574,7 +593,7 @@ export default function AdminDashboardPage() {
               <div>
                 <h2 className="text-lg font-bold flex items-center gap-2">
                   <Users className="w-5 h-5 text-primary" />
-                  قائمة المستخدمين والموظفين المصرح لهم
+                  قائمة المحامين والمشتركين المصرح لهم
                 </h2>
                 <p className="text-xs text-muted-foreground">
                   إضافة حسابات مخصصة، ربط Google Service Account وشيت مستقل لكل مستخدم، وتعديل الصلاحيات
@@ -683,8 +702,8 @@ export default function AdminDashboardPage() {
                                 </Badge>
                               ) : (
                                 <Badge variant="secondary" className="gap-1 text-xs">
-                                  <User className="w-3 h-3 text-sky-500" />
-                                  <span>موظف (Staff)</span>
+                                  <User className="w-3 h-3 text-emerald-500" />
+                                  <span>محامي (المشترك)</span>
                                 </Badge>
                               )}
                             </td>
@@ -718,7 +737,26 @@ export default function AdminDashboardPage() {
                                 : '—'}
                             </td>
                             <td className="py-3 px-4 text-end">
-                              <div className="flex items-center justify-end gap-1">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  title="تسليم بيانات الحساب للمحامي"
+                                  onClick={() => {
+                                    setHandoverData({
+                                      username: u.username,
+                                      displayName: u.display_name || u.username,
+                                      password: '12345',
+                                      loginUrl: `${window.location.origin}/login`,
+                                    });
+                                    setIsHandoverModalOpen(true);
+                                  }}
+                                  className="h-8 px-2.5 gap-1.5 text-xs text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 font-semibold"
+                                >
+                                  <Copy className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>تسليم الحساب</span>
+                                </Button>
+
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -794,7 +832,7 @@ export default function AdminDashboardPage() {
                       إعدادات وربط قاعدة بيانات المستخدمين (Supabase)
                     </h2>
                     <p className="text-xs text-muted-foreground">
-                      ربط الحسابات السحابية لحفظ وإدارة مستخدمي وموظفي المنظومة وتخصيص بياناتهم
+                      ربط الحسابات السحابية لحفظ وإدارة حسابات المحامين والمشتركين وتخصيص بياناتهم
                     </p>
                   </div>
                 </div>
@@ -992,7 +1030,7 @@ export default function AdminDashboardPage() {
                       }`}
                     >
                       <User className="w-3.5 h-3.5" />
-                      <span>موظف (Staff)</span>
+                      <span>محامي (المشترك)</span>
                     </button>
 
                     <button
@@ -1204,7 +1242,7 @@ export default function AdminDashboardPage() {
                       }`}
                     >
                       <User className="w-3.5 h-3.5" />
-                      <span>موظف (Staff)</span>
+                      <span>محامي (المشترك)</span>
                     </button>
 
                     <button
@@ -1337,6 +1375,83 @@ export default function AdminDashboardPage() {
                 className="text-xs bg-red-600 hover:bg-red-700 text-white"
               >
                 {actionLoading ? 'جارٍ الحذف...' : 'نعم، احذف الحساب'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Ready Handover Card for Lawyers */}
+      {isHandoverModalOpen && handoverData && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-card border border-emerald-500/30 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-foreground">
+                    بطاقة تسليم الحساب للمحامي جاهزة
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    تم تجهيز بيانات الحساب والاشتراك بنجاح، يمكنك نسخها وإرسالها للمحامي مباشرة
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsHandoverModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground text-sm font-bold px-2 py-1 rounded-md"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Handover Details Box */}
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 space-y-3 font-sans">
+              <div className="flex items-center justify-between pb-2 border-b border-emerald-500/15">
+                <span className="text-xs text-muted-foreground font-semibold">المحامي / المكتب:</span>
+                <span className="text-sm font-bold text-foreground">{handoverData.displayName || handoverData.username}</span>
+              </div>
+
+              <div className="flex items-center justify-between pb-2 border-b border-emerald-500/15">
+                <span className="text-xs text-muted-foreground font-semibold">رابط تسجيل دخول المحامي:</span>
+                <span className="text-xs font-mono font-bold text-primary truncate max-w-[240px] text-left" dir="ltr">
+                  {handoverData.loginUrl}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pb-2 border-b border-emerald-500/15">
+                <span className="text-xs text-muted-foreground font-semibold">اسم المستخدم:</span>
+                <span className="text-sm font-mono font-bold text-foreground px-2 py-0.5 rounded bg-muted/60">
+                  {handoverData.username}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground font-semibold">كلمة المرور:</span>
+                <span className="text-sm font-mono font-extrabold text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
+                  {handoverData.password || '12345'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+              <Button
+                type="button"
+                onClick={handleCopyHandover}
+                className="w-full sm:flex-1 gap-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md h-11"
+              >
+                {copiedHandover ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                <span>{copiedHandover ? 'تم نسخ بيانات التسليم بنجاح!' : 'نسخ بيانات التسليم للمحامي كاملة 📋'}</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsHandoverModalOpen(false)}
+                className="w-full sm:w-auto text-xs h-11"
+              >
+                إغلاق
               </Button>
             </div>
           </div>

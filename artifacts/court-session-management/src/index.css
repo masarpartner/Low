@@ -72,20 +72,20 @@
   --elevate-1: rgba(9, 58, 42, 0.04);
   --elevate-2: rgba(9, 58, 42, 0.08);
 
-  /* Background: الأبيض (#FFFFFF) */
-  --background: 0 0% 100%;
-  /* Foreground / Text: الرمادي الداكن (#4B4B4B) */
-  --foreground: 0 0% 29%;
+  /* Background: مظهر عصري ناصع ونظيف (#F8FAFC) */
+  --background: 210 20% 98%;
+  /* Foreground / Text: نص داكن عالي التباين وواضح (#0F172A) */
+  --foreground: 222 47% 11%;
 
-  --border: 0 0% 88%;
+  --border: 214 32% 91%;
 
   --card: 0 0% 100%;
-  --card-foreground: 0 0% 29%;
-  --card-border: 0 0% 90%;
+  --card-foreground: 222 47% 11%;
+  --card-border: 214 32% 91%;
 
   /* Sidebar: الأخضر الغامق (#093A2A) */
   --sidebar: 160 73% 13%;
-  --sidebar-foreground: 0 0% 95%;
+  --sidebar-foreground: 0 0% 98%;
   --sidebar-border: 160 50% 20%;
   --sidebar-primary: 38 51% 48%; /* الذهبي (#B88A3B) */
   --sidebar-primary-foreground: 0 0% 100%;
@@ -94,28 +94,28 @@
   --sidebar-ring: 38 51% 48%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 29%;
-  --popover-border: 0 0% 88%;
+  --popover-foreground: 222 47% 11%;
+  --popover-border: 214 32% 91%;
 
   /* Primary: الأخضر الغامق (#093A2A) */
   --primary: 160 73% 13%;
   --primary-foreground: 0 0% 100%;
 
-  /* Secondary & Muted: الرمادي الفاتح (#F5F5F5) */
-  --secondary: 0 0% 96%;
-  --secondary-foreground: 0 0% 29%;
+  /* Secondary & Muted: درجات رمادية نظيفة وعصرية */
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
 
-  --muted: 0 0% 96%;
-  --muted-foreground: 0 0% 42%;
+  --muted: 210 40% 96.5%;
+  --muted-foreground: 215 16% 47%;
 
   /* Accent: الذهبي (#B88A3B) */
   --accent: 38 51% 48%;
   --accent-foreground: 0 0% 100%;
 
-  --destructive: 0 75% 52%;
+  --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
-  --input: 0 0% 88%;
+  --input: 214 32% 91%;
   --ring: 160 73% 13%;
   
   --chart-1: 160 73% 13%;

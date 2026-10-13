@@ -208,6 +208,46 @@ export function currentHijriDateString(): string {
  *
  * Returns null if the Hijri date cannot be parsed.
  */
+export interface CalendarDate {
+  year: number;
+  month: number;
+  day: number;
+}
+
+export function parseGregorianDateString(input: string | null | undefined): CalendarDate | null {
+  if (!input || typeof input !== "string") {
+    return null;
+  }
+  const normalized = normalizeDigits(input.trim());
+  if (!normalized) {
+    return null;
+  }
+
+  // Format 1: YYYY-MM-DD or YYYY/MM/DD
+  const ymdMatch = normalized.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (ymdMatch) {
+    const year = Number(ymdMatch[1]);
+    const month = Number(ymdMatch[2]);
+    const day = Number(ymdMatch[3]);
+    if (year >= 1900 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return { year, month, day };
+    }
+  }
+
+  // Format 2: DD/MM/YYYY or DD-MM-YYYY
+  const dmyMatch = normalized.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (dmyMatch) {
+    const day = Number(dmyMatch[1]);
+    const month = Number(dmyMatch[2]);
+    const year = Number(dmyMatch[3]);
+    if (year >= 1900 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return { year, month, day };
+    }
+  }
+
+  return null;
+}
+
 export function computeHearingDateTime(
   sessionDateHijri: string | null | undefined,
   sessionTime: string | null | undefined,
@@ -216,18 +256,8 @@ export function computeHearingDateTime(
     return null;
   }
   try {
-    const hijriDate = parseHijriDateString(sessionDateHijri);
-    if (!hijriDate) {
-      return null;
-    }
-    const gregorian = hijriToGregorian(hijriDate);
-    if (!gregorian) {
-      return null;
-    }
     const offsetHours = env.courtTimezoneOffsetHours;
 
-    // Parse the time if provided; fall back to end of day (23:59) in Mecca time
-    // so that a date-only session is not considered "ended" until the day is fully over.
     let timeHours = 23;
     let timeMinutes = 59;
     if (sessionTime) {
@@ -236,6 +266,31 @@ export function computeHearingDateTime(
         timeHours = time.hours;
         timeMinutes = time.minutes;
       }
+    }
+
+    // 1. Support Gregorian date (used in Palestinian, Jordanian, Egyptian and many Arab courts)
+    const greg = parseGregorianDateString(sessionDateHijri);
+    if (greg) {
+      const hearingDate = new Date(
+        Date.UTC(
+          greg.year,
+          greg.month - 1,
+          greg.day,
+          timeHours - offsetHours,
+          timeMinutes,
+        ),
+      );
+      return isNaN(hearingDate.getTime()) ? null : hearingDate;
+    }
+
+    // 2. Support Hijri date (e.g. Saudi courts, Umm al-Qura calendar)
+    const hijriDate = parseHijriDateString(sessionDateHijri);
+    if (!hijriDate) {
+      return null;
+    }
+    const gregorian = hijriToGregorian(hijriDate);
+    if (!gregorian) {
+      return null;
     }
 
     const hearingDate = new Date(

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useLogin } from '@workspace/api-client-react';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Scale, Lock, User } from 'lucide-react';
+import { Scale, Lock, User, ArrowLeft, ShieldCheck, Sparkles } from 'lucide-react';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -27,7 +27,7 @@ export default function LoginPage() {
           const detail = error?.data?.error || error?.message;
           let description = 'اسم المستخدم أو كلمة المرور غير صحيحة';
           if (detail && detail !== 'Invalid username or password.') {
-            description = `خطأ في الاتصال بالخادم: ${detail}`;
+            description = `${detail}`;
           }
           toast({
             title: 'فشل تسجيل الدخول',
@@ -40,89 +40,147 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center bg-background p-4" dir="rtl">
-      {/* Background decorations */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-chart-3/5 blur-3xl" />
-      </div>
+    <div
+      className="min-h-[100dvh] flex items-center justify-center p-4 relative overflow-hidden"
+      style={{
+        background: 'radial-gradient(ellipse at top, #093A2A 0%, #041812 60%, #020C09 100%)',
+      }}
+      dir="rtl"
+    >
+      {/* Ambient background glow */}
+      <div className="absolute top-1/4 -right-20 w-96 h-96 bg-[#B88A3B]/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 -left-20 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative w-full max-w-sm">
-        {/* Card */}
-        <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-          {/* Top accent */}
-          <div className="h-1 bg-gradient-to-l from-primary via-chart-3 to-primary/30" />
-
-          <div className="p-8">
-            {/* Logo */}
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 mx-auto flex items-center justify-center mb-4">
-                <Scale className="w-8 h-8 text-primary" />
-              </div>
-              <h1 className="text-xl font-bold">نظام إدارة جلسات المحكمة</h1>
-              <p className="text-sm text-muted-foreground mt-1.5">
-                سجّل دخولك للوصول إلى بوابة السكرتير القانوني
-              </p>
+      <div className="relative w-full max-w-md">
+        {/* Main Card */}
+        <div
+          className="rounded-3xl p-8 sm:p-10 shadow-2xl backdrop-blur-2xl"
+          style={{
+            background: 'rgba(5, 31, 23, 0.75)',
+            border: '1px solid rgba(184, 138, 59, 0.25)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+          }}
+        >
+          {/* Logo & Header */}
+          <div className="text-center mb-8">
+            <div
+              className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-xl"
+              style={{
+                background: 'linear-gradient(135deg, #B88A3B 0%, #8E6825 100%)',
+                boxShadow: '0 8px 20px rgba(184, 138, 59, 0.35), inset 0 1px 1px rgba(255,255,255,0.4)',
+              }}
+            >
+              <Scale className="w-8 h-8 text-white drop-shadow" />
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="username" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  اسم المستخدم
-                </Label>
-                <div className="relative">
-                  <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="username"
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="أدخل اسم المستخدم"
-                    required
-                    disabled={loginMutation.isPending}
-                    autoComplete="username"
-                    className="pr-9 h-10"
-                    data-testid="input-username"
-                  />
-                </div>
-              </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold mb-2.5"
+              style={{
+                background: 'rgba(184, 138, 59, 0.15)',
+                color: '#E5C07B',
+                border: '1px solid rgba(184, 138, 59, 0.3)',
+              }}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>المنصة السحابية لإدارة القضايا والجلسات</span>
+            </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              بوابة المحامي
+            </h1>
+            <p className="text-xs text-emerald-200/70 mt-1.5">
+              سجّل دخولك لمتابعة قضاياك، جلساتك، والتنبيهات القضائية
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="username" className="text-xs font-semibold text-emerald-100/80">
+                اسم المستخدم / رمز المحامي
+              </Label>
+              <div className="relative">
+                <User className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-300/50" />
+                <Input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="12345"
+                  required
+                  disabled={loginMutation.isPending}
+                  autoComplete="username"
+                  className="pr-10 h-11 text-white placeholder:text-emerald-300/30 font-medium rounded-xl border-emerald-500/20 focus:border-[#B88A3B] focus:ring-1 focus:ring-[#B88A3B]"
+                  style={{ background: 'rgba(0, 0, 0, 0.25)' }}
+                  data-testid="input-username"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-xs font-semibold text-emerald-100/80">
                   كلمة المرور
                 </Label>
-                <div className="relative">
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="أدخل كلمة المرور"
-                    required
-                    disabled={loginMutation.isPending}
-                    autoComplete="current-password"
-                    className="pr-9 h-10"
-                    data-testid="input-password"
-                  />
-                </div>
               </div>
+              <div className="relative">
+                <Lock className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-300/50" />
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="•••••"
+                  required
+                  disabled={loginMutation.isPending}
+                  autoComplete="current-password"
+                  className="pr-10 h-11 text-white placeholder:text-emerald-300/30 font-medium rounded-xl border-emerald-500/20 focus:border-[#B88A3B] focus:ring-1 focus:ring-[#B88A3B]"
+                  style={{ background: 'rgba(0, 0, 0, 0.25)' }}
+                  data-testid="input-password"
+                />
+              </div>
+            </div>
 
-              <Button
-                type="submit"
-                className="w-full h-11 font-bold mt-2 shadow-sm"
-                disabled={loginMutation.isPending}
-                data-testid="button-login"
-              >
-                {loginMutation.isPending ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول'}
-              </Button>
-            </form>
+            <Button
+              type="submit"
+              className="w-full h-11 font-bold text-sm text-white rounded-xl mt-3 transition-all duration-200 border-0 shadow-lg cursor-pointer"
+              style={{
+                background: 'linear-gradient(135deg, #B88A3B 0%, #8E6825 100%)',
+                boxShadow: '0 4px 15px rgba(184, 138, 59, 0.35)',
+              }}
+              disabled={loginMutation.isPending}
+              data-testid="button-login"
+            >
+              {loginMutation.isPending ? 'جارٍ تسجيل الدخول...' : 'تسجيل دخول المحامي'}
+            </Button>
+          </form>
+
+          {/* Quick Access Info */}
+          <div
+            className="mt-6 p-3 rounded-xl text-center text-xs flex items-center justify-center gap-2"
+            style={{
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              color: 'rgba(255, 255, 255, 0.6)',
+            }}
+          >
+            <span>بيانات الدخول الافتراضية:</span>
+            <span className="font-mono text-emerald-300 font-bold px-1.5 py-0.5 rounded bg-white/5">12345</span>
+          </div>
+
+          {/* Admin Portal Gateway Link */}
+          <div className="mt-5 pt-4 text-center border-t border-white/10">
+            <Link href="/admin/login">
+              <span className="inline-flex items-center gap-2 text-xs text-emerald-200/60 hover:text-[#E5C07B] transition-colors cursor-pointer py-1.5 px-3 rounded-lg hover:bg-white/5">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#B88A3B]" />
+                <span>دخول المشرف العام (Admin Portal)</span>
+                <ArrowLeft className="w-3 h-3" />
+              </span>
+            </Link>
           </div>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground/60 mt-4">
-          نظام إدارة جلسات المحكمة — بوابة السكرتير القانوني
+        <p className="text-center text-xs text-white/40 mt-4">
+          نظام إدارة الجلسات والدعاوى القضائية — إصدار المحامي
         </p>
       </div>
     </div>

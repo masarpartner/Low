@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, Link } from 'wouter';
-import { ShieldCheck, Lock, User, ArrowRight, ShieldAlert, KeyRound, ExternalLink } from 'lucide-react';
+import { ShieldCheck, Lock, User, ArrowLeft, ShieldAlert, KeyRound, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,7 +41,7 @@ export default function AdminLoginPage() {
       }
 
       toast({
-        title: 'أهلاً بك يا مدير النظام 👑',
+        title: 'أهلاً بك في لوحة الإدارة 👑',
         description: `تم تسجيل الدخول بنجاح بصلاحيات المشرف العام (${data.username}).`,
       });
 
@@ -62,108 +62,135 @@ export default function AdminLoginPage() {
 
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center p-4"
-      dir="rtl"
+      className="min-h-[100dvh] flex items-center justify-center p-4 relative overflow-hidden"
       style={{
-        background: 'radial-gradient(ellipse at center, #0a1f18 0%, #030b08 100%)',
+        background: 'radial-gradient(ellipse at top, #1A1305 0%, #0D0A02 50%, #050401 100%)',
       }}
+      dir="rtl"
     >
-      <div className="w-full max-w-md space-y-6">
-        {/* Top Badge & Title */}
-        <div className="text-center space-y-3">
-          <div
-            className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center border border-amber-500/40 shadow-2xl"
-            style={{
-              background: 'linear-gradient(135deg, #B88A3B 0%, #8c6422 100%)',
-              boxShadow: '0 8px 30px rgba(184, 138, 59, 0.3)',
-            }}
-          >
-            <ShieldCheck className="w-8 h-8 text-white" />
-          </div>
+      {/* Ambient background glow */}
+      <div className="absolute top-1/4 -right-20 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 -left-20 w-96 h-96 bg-yellow-600/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div>
-            <span className="text-[11px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
-              Admin Portal Gateway
-            </span>
-            <h1 className="text-2xl font-black text-white mt-2 tracking-tight">
-              بوابة دخول المشرف العام
+      <div className="relative w-full max-w-md">
+        {/* Main Card */}
+        <div
+          className="rounded-3xl p-8 sm:p-10 shadow-2xl backdrop-blur-2xl"
+          style={{
+            background: 'rgba(18, 14, 5, 0.85)',
+            border: '1px solid rgba(184, 138, 59, 0.35)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+          }}
+        >
+          {/* Logo & Header */}
+          <div className="text-center mb-8">
+            <div
+              className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-xl"
+              style={{
+                background: 'linear-gradient(135deg, #B88A3B 0%, #8E6825 100%)',
+                boxShadow: '0 8px 24px rgba(184, 138, 59, 0.45), inset 0 1px 1px rgba(255,255,255,0.4)',
+              }}
+            >
+              <ShieldCheck className="w-8 h-8 text-white drop-shadow" />
+            </div>
+
+            <div
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold mb-2.5"
+              style={{
+                background: 'rgba(184, 138, 59, 0.18)',
+                color: '#E5C07B',
+                border: '1px solid rgba(184, 138, 59, 0.35)',
+              }}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Admin Portal Gateway — بوابة المشرف العام</span>
+            </div>
+
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              لوحة التحكم والإدارة
             </h1>
-            <p className="text-xs text-muted-foreground mt-1 text-slate-400">
-              لوحة التحكم المركزية لإدارة حسابات الموظفين وصلاحيات المنظومة
+            <p className="text-xs text-amber-200/60 mt-1.5">
+              الإدارة المركزية لحسابات المحامين والمشتركين وقواعد البيانات
             </p>
           </div>
-        </div>
 
-        {/* Card */}
-        <div className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl p-7 shadow-2xl space-y-5">
           {errorMsg && (
-            <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3.5 flex items-center gap-3 text-red-300 text-xs font-semibold">
+            <div className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 p-3.5 flex items-center gap-2.5 text-red-300 text-xs font-semibold">
               <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
+          {/* Form */}
           <form onSubmit={handleAdminLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+              <Label className="text-xs font-semibold text-amber-100/80">
                 اسم المشرف (Admin Username)
               </Label>
               <div className="relative">
-                <User className="w-4 h-4 absolute start-3 inset-y-0 my-auto text-slate-400" />
+                <User className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-300/50" />
                 <Input
+                  type="text"
                   required
-                  placeholder="e.g. 5128 أو admin"
+                  placeholder="123456"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="ps-9 font-mono text-sm bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-amber-500"
-                  dir="ltr"
+                  className="pr-10 h-11 text-white placeholder:text-amber-200/30 font-mono text-sm rounded-xl border-amber-500/20 focus:border-[#B88A3B] focus:ring-1 focus:ring-[#B88A3B]"
+                  style={{ background: 'rgba(0, 0, 0, 0.35)' }}
                   autoFocus
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+              <Label className="text-xs font-semibold text-amber-100/80">
                 كلمة المرور (Master Password)
               </Label>
               <div className="relative">
-                <Lock className="w-4 h-4 absolute start-3 inset-y-0 my-auto text-slate-400" />
+                <Lock className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-300/50" />
                 <Input
-                  required
                   type="password"
-                  placeholder="••••••••"
+                  required
+                  placeholder="••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="ps-9 font-mono text-sm bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-amber-500"
-                  dir="ltr"
+                  className="pr-10 h-11 text-white placeholder:text-amber-200/30 font-mono text-sm rounded-xl border-amber-500/20 focus:border-[#B88A3B] focus:ring-1 focus:ring-[#B88A3B]"
+                  style={{ background: 'rgba(0, 0, 0, 0.35)' }}
                 />
               </div>
             </div>
 
             <Button
               type="submit"
-              size="lg"
               disabled={loading}
-              className="w-full h-11 text-sm font-bold gap-2 text-white border-0 shadow-lg"
+              className="w-full h-11 font-bold text-sm text-white rounded-xl mt-3 transition-all duration-200 border-0 shadow-lg cursor-pointer"
               style={{
-                background: 'linear-gradient(135deg, #B88A3B 0%, #966c25 100%)',
+                background: 'linear-gradient(135deg, #B88A3B 0%, #8E6825 100%)',
+                boxShadow: '0 4px 15px rgba(184, 138, 59, 0.4)',
               }}
             >
-              <KeyRound className="w-4 h-4" />
+              <KeyRound className="w-4 h-4 ml-1" />
               {loading ? 'جارٍ التحقق من المشرف...' : 'دخول المشرف العام'}
             </Button>
           </form>
+
+          {/* Quick Access Info */}
+          <div
+            className="mt-6 p-3 rounded-xl text-center text-xs flex items-center justify-center gap-2"
+            style={{
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              color: 'rgba(255, 255, 255, 0.6)',
+            }}
+          >
+            <span>بيانات الدخول الافتراضية للمشرف:</span>
+            <span className="font-mono text-amber-300 font-bold px-1.5 py-0.5 rounded bg-white/5">123456</span>
+          </div>
         </div>
 
-        {/* Switch to Regular Staff Login */}
-        <div className="text-center pt-2">
-          <Link href="/login">
-            <span className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-amber-400 transition-colors cursor-pointer py-1.5 px-3 rounded-lg hover:bg-white/5">
-              <span>الانتقال لبوابة الموظفين ونظام الجلسات</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </span>
-          </Link>
-        </div>
+        <p className="text-center text-xs text-white/40 mt-4">
+          نظام إدارة الاشتراكات والمستخدمين — لوحة المشرف العام
+        </p>
       </div>
     </div>
   );

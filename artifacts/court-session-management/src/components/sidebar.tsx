@@ -78,7 +78,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
               إدارة جلسات المحكمة
             </h1>
             <p className="text-[10px] mt-0.5" style={{ color: '#B88A3B' }}>
-              بوابة السكرتير القانوني
+              بوابة المحامي
             </p>
           </div>
         </div>

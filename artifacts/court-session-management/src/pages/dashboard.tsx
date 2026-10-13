@@ -143,12 +143,29 @@ export default function DashboardPage() {
   return (
     <div className="p-6 lg:p-8 space-y-8">
       {/* Header */}
-      <div className="fade-in-up">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-1 h-6 rounded-full bg-primary" />
-          <h1 className="text-2xl font-bold tracking-tight">لوحة التحكم</h1>
+      <div className="fade-in-up flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent shadow-sm">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="w-2 h-6 rounded-full bg-primary" />
+            <h1 className="text-2xl font-black tracking-tight text-foreground">
+              مرحباً بك، سيادة المحامي ⚖️
+            </h1>
+          </div>
+          <p className="text-muted-foreground text-sm mr-4">
+            المكتب الرقمي الموحد لإدارة جلسات المحاكم، الوكالات، الأحكام القضائية، والمهام اليومية
+          </p>
         </div>
-        <p className="text-muted-foreground text-sm mr-3">نظرة عامة على نشاط جلسات المحكمة والوكالات والأحكام القضائية</p>
+        <div className="flex items-center gap-2 mr-4 md:mr-0">
+          <Link href="/chat">
+            <div
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white shadow-md cursor-pointer transition-all duration-200 hover:shadow-lg hover:brightness-105"
+              style={{ background: 'linear-gradient(135deg, #B88A3B 0%, #8E6825 100%)' }}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>تحليل رسالة جلسة جديدة</span>
+            </div>
+          </Link>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -160,10 +177,10 @@ export default function DashboardPage() {
           return (
             <Link key={stat.key} href={stat.href}>
               <div
-                className={`fade-in-up fade-in-up-delay-${i + 1} rounded-xl border ${stat.borderColor} bg-gradient-to-br ${stat.gradient} p-5 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer h-full flex flex-col justify-between`}
+                className={`fade-in-up fade-in-up-delay-${i + 1} rounded-2xl border border-slate-200/80 dark:border-border bg-white dark:bg-card p-5 transition-all duration-200 hover:shadow-md hover:border-emerald-600/40 hover:-translate-y-0.5 cursor-pointer h-full flex flex-col justify-between shadow-xs`}
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className={`w-10 h-10 rounded-xl ${stat.iconBg} flex items-center justify-center`}>
+                  <div className={`w-11 h-11 rounded-xl ${stat.iconBg} flex items-center justify-center shadow-xs`}>
                     <Icon className={`w-5 h-5 ${stat.iconColor}`} />
                   </div>
                   <div className={`w-2 h-2 rounded-full ${stat.dotColor} mt-1`} />
@@ -172,11 +189,11 @@ export default function DashboardPage() {
                   {isLoading ? (
                     <Skeleton className="h-9 w-16 mb-1" />
                   ) : (
-                    <div className="text-4xl font-bold font-mono tracking-tight" data-testid={`stat-${stat.key}`}>
+                    <div className="text-3xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-foreground" data-testid={`stat-${stat.key}`}>
                       {value ?? 0}
                     </div>
                   )}
-                  <p className="text-sm text-muted-foreground mt-1 font-medium">{stat.label}</p>
+                  <p className="text-xs text-slate-500 dark:text-muted-foreground mt-1.5 font-semibold">{stat.label}</p>
                 </div>
               </div>
             </Link>
@@ -202,11 +219,11 @@ export default function DashboardPage() {
             return (
               <Link key={stat.key} href="/tasks">
                 <div
-                  className={`fade-in-up fade-in-up-delay-${i + 1} rounded-xl border ${stat.borderColor} bg-gradient-to-br ${stat.gradient} p-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer h-full flex flex-col justify-between`}
+                  className={`fade-in-up fade-in-up-delay-${i + 1} rounded-2xl border border-slate-200/80 dark:border-border bg-white dark:bg-card p-4 transition-all duration-200 hover:shadow-md hover:border-amber-500/40 hover:-translate-y-0.5 cursor-pointer h-full flex flex-col justify-between shadow-xs`}
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <div className={`w-9 h-9 rounded-xl ${stat.iconBg} flex items-center justify-center`}>
-                      <Icon className={`w-4 h-4 ${stat.iconColor}`} />
+                    <div className={`w-10 h-10 rounded-xl ${stat.iconBg} flex items-center justify-center shadow-xs`}>
+                      <Icon className={`w-5 h-5 ${stat.iconColor}`} />
                     </div>
                     <div className={`w-2 h-2 rounded-full ${stat.dotColor} mt-1`} />
                   </div>
@@ -214,9 +231,9 @@ export default function DashboardPage() {
                     {isLoading ? (
                       <Skeleton className="h-8 w-12 mb-1" />
                     ) : (
-                      <div className="text-3xl font-bold font-mono tracking-tight">{value ?? 0}</div>
+                      <div className="text-2xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-foreground">{value ?? 0}</div>
                     )}
-                    <p className="text-xs text-muted-foreground mt-1 font-medium">{stat.label}</p>
+                    <p className="text-xs text-slate-500 dark:text-muted-foreground mt-1 font-medium">{stat.label}</p>
                   </div>
                 </div>
               </Link>

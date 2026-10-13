@@ -108,7 +108,7 @@ export default function ChatPage() {
     { key: 'courtCircuit', label: 'الدائرة القضائية', dir: 'rtl' as const },
     { key: 'caseSubject', label: 'موضوع القضية', dir: 'rtl' as const },
     { key: 'sessionType', label: 'نوع الجلسة', dir: 'rtl' as const },
-    { key: 'sessionDateHijri', label: 'تاريخ الجلسة (هجري)', dir: 'ltr' as const, mono: true },
+    { key: 'sessionDateHijri', label: 'تاريخ الجلسة (ميلادي / هجري)', dir: 'ltr' as const, mono: true },
     { key: 'sessionTime', label: 'وقت الجلسة', dir: 'auto' as const, mono: true },
   ];
 

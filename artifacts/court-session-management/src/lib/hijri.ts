@@ -73,6 +73,17 @@ export function getArabicDayName(session: {
         // ignore
       }
     }
+
+    // Gregorian format fallback (e.g. Palestinian/Jordanian/Egyptian courts)
+    const GREG_FORMATS = ['YYYY-MM-DD', 'DD/MM/YYYY', 'YYYY/MM/DD', 'DD-MM-YYYY'];
+    for (const fmt of GREG_FORMATS) {
+      try {
+        const m = moment(raw, fmt, true);
+        if (m && typeof m.isValid === 'function' && m.isValid()) {
+          return ARABIC_DAYS[m.day()] ?? null;
+        }
+      } catch {}
+    }
   }
 
   return null;

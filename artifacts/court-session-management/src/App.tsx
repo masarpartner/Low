@@ -40,7 +40,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden flex-col md:flex-row-reverse">
+    <div className="flex h-[100dvh] overflow-hidden flex-col md:flex-row" dir="rtl">
       {/* Desktop Sidebar */}
       <aside className="w-64 flex-shrink-0 hidden md:block">
         <Sidebar />
@@ -77,7 +77,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto bg-slate-50/70 dark:bg-background">
         <ErrorBoundary>
           <Suspense fallback={<div className="flex h-full items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
             {children}

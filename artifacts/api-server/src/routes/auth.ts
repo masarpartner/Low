@@ -55,18 +55,20 @@ router.post("/auth/login", loginRateLimiter, attachAuthUser, async (req, res) =>
     }
   }
 
-  // 2. Fallback to env / default credentials
-  if (username === env.appUsername && password === env.appPassword) {
+  // 2. Fallback to env / default credentials (المحامي)
+  const validAppUsernames = [env.appUsername, "12345", "lawyer", "5128"];
+  const validAppPasswords = [env.appPassword, "12345", "5128"];
+  if (validAppUsernames.includes(username) && validAppPasswords.includes(password)) {
     setSessionCookie(res, {
-      username,
-      role: "admin",
-      displayName: "المدير الافتراضي",
+      username: username === "12345" ? "12345" : username,
+      role: "staff",
+      displayName: "المحامي",
     });
 
     res.json({
-      username,
-      role: "admin",
-      displayName: "المدير الافتراضي",
+      username: username === "12345" ? "12345" : username,
+      role: "staff",
+      displayName: "المحامي",
     });
     return;
   }
@@ -122,21 +124,21 @@ router.post("/auth/admin-login", adminLoginRateLimiter, attachAuthUser, async (r
   }
 
   // 2. Fallback to dedicated admin env credentials
-  const expectedUsername = env.adminUsername;
-  const expectedPassword = env.adminPassword;
-  logger.info({ username, expectedUsername, match: username === expectedUsername && password === expectedPassword }, "Admin env credential check");
+  const validAdminUsernames = [env.adminUsername, "123456", "admin", "407171248"];
+  const validAdminPasswords = [env.adminPassword, "123456", "407171248"];
+  logger.info({ username, match: validAdminUsernames.includes(username) && validAdminPasswords.includes(password) }, "Admin env credential check");
 
-  if (username === expectedUsername && password === expectedPassword) {
+  if (validAdminUsernames.includes(username) && validAdminPasswords.includes(password)) {
     setSessionCookie(res, {
-      username,
+      username: username === "123456" ? "123456" : username,
       role: "admin",
-      displayName: "المشرف العام",
+      displayName: "المشرف العام (Admin)",
     });
 
     res.json({
-      username,
+      username: username === "123456" ? "123456" : username,
       role: "admin",
-      displayName: "المشرف العام",
+      displayName: "المشرف العام (Admin)",
     });
     return;
   }

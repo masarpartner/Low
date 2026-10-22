@@ -9,9 +9,9 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { env } from "./config/env";
 
-// ESM-safe __dirname equivalent
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ESM and CJS safe directory resolution
+const currentFilename = typeof __filename !== "undefined" ? __filename : (typeof import.meta !== "undefined" && import.meta.url ? fileURLToPath(import.meta.url) : process.cwd());
+const currentDirname = typeof __dirname !== "undefined" ? __dirname : path.dirname(currentFilename);
 
 const app: Express = express();
 
@@ -44,16 +44,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser(env.sessionSecret));
 
-// Mount API routes under /api
+// Mount API routes under /api and root (to handle both rewritten and direct paths)
 app.use("/api", router);
+app.use(router);
 
 // Serve static frontend files in production / standalone server (Render)
 const possibleDistPaths = [
   path.resolve(process.cwd(), "dist"),
   path.resolve(process.cwd(), "artifacts/court-session-management/dist"),
-  path.resolve(__dirname, "../../court-session-management/dist"),
-  path.resolve(__dirname, "../dist"),
-  path.resolve(__dirname, "../../dist"),
+  path.resolve(currentDirname, "../../court-session-management/dist"),
+  path.resolve(currentDirname, "../dist"),
+  path.resolve(currentDirname, "../../dist"),
 ];
 
 const distPath = possibleDistPaths.find((p) => {

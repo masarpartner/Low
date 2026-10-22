@@ -3,7 +3,9 @@
 const { createRequire: __bannerCrReq } = require('node:module');
 const __bannerPath = require('node:path');
 const __bannerUrl = require('node:url');
+const __bannerImportMetaUrl = __bannerUrl.pathToFileURL(__filename).href;
 globalThis.require = __bannerCrReq(__filename);
+globalThis.__filename = __filename;
 globalThis.__dirname = __bannerPath.dirname(__filename);
       
 "use strict";
@@ -18664,7 +18666,7 @@ var require_finalhandler = __commonJS({
     module2.exports = finalhandler;
     function finalhandler(req, res, options) {
       var opts = options || {};
-      var env2 = opts.env || process.env.NODE_ENV || "development";
+      var env2 = opts.env || "production";
       var onerror = opts.onerror;
       return function(err) {
         var headers;
@@ -21130,7 +21132,7 @@ var require_application = __commonJS({
       });
     };
     app2.defaultConfiguration = function defaultConfiguration() {
-      var env2 = process.env.NODE_ENV || "development";
+      var env2 = "production";
       this.enable("x-powered-by");
       this.set("etag", "weak");
       this.set("env", env2);
@@ -54915,7 +54917,7 @@ var import_path = require("path");
 
 // src/lib/logger.ts
 var import_pino = __toESM(require_pino(), 1);
-var isProduction = process.env.NODE_ENV === "production";
+var isServerlessOrProd = true;
 var logger = (0, import_pino.default)({
   level: process.env.LOG_LEVEL ?? "info",
   redact: [
@@ -54923,12 +54925,12 @@ var logger = (0, import_pino.default)({
     "req.headers.cookie",
     "res.headers['set-cookie']"
   ],
-  ...isProduction ? {} : {
+  ...!isServerlessOrProd && process.env.USE_PINO_PRETTY === "true" ? {
     transport: {
       target: "pino-pretty",
       options: { colorize: true }
     }
-  }
+  } : {}
 });
 
 // src/config/settings-store.ts
@@ -55149,7 +55151,7 @@ var env = {
     return Number.isFinite(parsed) ? parsed : 3;
   },
   get isProduction() {
-    return process.env.NODE_ENV === "production";
+    return true;
   }
 };
 function isGoogleSheetsConfigured() {
@@ -81886,7 +81888,6 @@ var MAX_DAYS = 366 * 100;
 // ../../node_modules/.pnpm/node-cron@4.6.0/node_modules/node-cron/dist/node-cron.js
 var import_path3 = __toESM(require("path"), 1);
 var import_url = require("url");
-var import_meta = {};
 var tasks2 = /* @__PURE__ */ new Map();
 var TaskRegistry = class {
   add(task) {
@@ -81917,8 +81918,8 @@ var TaskRegistry = class {
     tasks2.forEach((id) => this.remove(id));
   }
 };
-var daemonPath = (0, import_path3.resolve)((0, import_path3.dirname)((0, import_url.fileURLToPath)(import_meta.url)), "daemon.js");
-var moduleFilename = (0, import_url.fileURLToPath)(import_meta.url);
+var daemonPath = (0, import_path3.resolve)((0, import_path3.dirname)((0, import_url.fileURLToPath)(__bannerImportMetaUrl)), "daemon.js");
+var moduleFilename = (0, import_url.fileURLToPath)(__bannerImportMetaUrl);
 var registry = new TaskRegistry();
 var getTasks = registry.all;
 var getTask = registry.get;
@@ -82717,9 +82718,9 @@ router13.use(users_default);
 var routes_default = router13;
 
 // src/app.ts
-var import_meta2 = {};
-var __filename = (0, import_url2.fileURLToPath)(import_meta2.url);
-var __dirname2 = import_path4.default.dirname(__filename);
+var import_meta = {};
+var currentFilename = typeof __filename !== "undefined" ? __filename : typeof import_meta !== "undefined" && __bannerImportMetaUrl ? (0, import_url2.fileURLToPath)(__bannerImportMetaUrl) : process.cwd();
+var currentDirname = typeof __dirname !== "undefined" ? __dirname : import_path4.default.dirname(currentFilename);
 var app = (0, import_express14.default)();
 app.set("trust proxy", 1);
 var pinoHttpMiddleware = import_pino_http.default.default || import_pino_http.default;
@@ -82747,12 +82748,13 @@ app.use(import_express14.default.json());
 app.use(import_express14.default.urlencoded({ extended: true }));
 app.use((0, import_cookie_parser.default)(env.sessionSecret));
 app.use("/api", routes_default);
+app.use(routes_default);
 var possibleDistPaths = [
   import_path4.default.resolve(process.cwd(), "dist"),
   import_path4.default.resolve(process.cwd(), "artifacts/court-session-management/dist"),
-  import_path4.default.resolve(__dirname2, "../../court-session-management/dist"),
-  import_path4.default.resolve(__dirname2, "../dist"),
-  import_path4.default.resolve(__dirname2, "../../dist")
+  import_path4.default.resolve(currentDirname, "../../court-session-management/dist"),
+  import_path4.default.resolve(currentDirname, "../dist"),
+  import_path4.default.resolve(currentDirname, "../../dist")
 ];
 var distPath = possibleDistPaths.find((p) => {
   try {
@@ -82776,6 +82778,11 @@ var app_default = app;
 
 // src/vercelHandler.ts
 function handler(req, res) {
+  const originalUrl = req.headers?.["x-matched-path"] || req.headers?.["x-forwarded-uri"];
+  if (typeof originalUrl === "string" && originalUrl && (req.url === "/api" || req.url === "/api/" || req.url === "/api/index" || req.url === "/api/index.js")) {
+    req.url = originalUrl;
+  }
+  if (!req.headers) req.headers = {};
   req.headers["x-forwarded-proto"] = "https";
   return app_default(req, res);
 }

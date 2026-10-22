@@ -132,6 +132,10 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     format: "cjs",          // Vercel Node runtime requires CJS
     outfile: path.resolve(vercelOutDir, "index.js"),
     logLevel: "info",
+    define: {
+      "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV || "production"),
+      "import.meta.url": "__bannerImportMetaUrl",
+    },
     external: [
       "*.node",
       "googleapis",
@@ -147,7 +151,9 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
 const { createRequire: __bannerCrReq } = require('node:module');
 const __bannerPath = require('node:path');
 const __bannerUrl = require('node:url');
+const __bannerImportMetaUrl = __bannerUrl.pathToFileURL(__filename).href;
 globalThis.require = __bannerCrReq(__filename);
+globalThis.__filename = __filename;
 globalThis.__dirname = __bannerPath.dirname(__filename);
       `,
     },

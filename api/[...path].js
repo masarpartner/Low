@@ -55211,7 +55211,18 @@ function clearSessionCookie(res) {
   res.clearCookie(SESSION_COOKIE_NAME, { path: "/" });
 }
 function readSessionCookie(req) {
-  const raw = req.signedCookies?.[SESSION_COOKIE_NAME];
+  let raw = req.signedCookies?.[SESSION_COOKIE_NAME];
+  if (!raw && req.cookies?.[SESSION_COOKIE_NAME]) {
+    const candidate = req.cookies[SESSION_COOKIE_NAME];
+    raw = candidate.startsWith("s:") ? candidate.slice(2).split(".")[0] : candidate;
+  }
+  if (!raw && req.headers.cookie) {
+    const match = req.headers.cookie.split(";").map((s) => s.trim()).find((s) => s.startsWith(`${SESSION_COOKIE_NAME}=`));
+    if (match) {
+      const val = decodeURIComponent(match.slice(SESSION_COOKIE_NAME.length + 1));
+      raw = val.startsWith("s:") ? val.slice(2).split(".")[0] : val;
+    }
+  }
   if (!raw) {
     return null;
   }
@@ -82752,6 +82763,10 @@ app.use((0, import_cors.default)({ credentials: true, origin: true }));
 app.use((req, _res, next) => {
   if (req.body && typeof req.body === "object" && !req._body) {
     req._body = true;
+  }
+  req.secret = env.sessionSecret;
+  if (req.cookies && !req.signedCookies) {
+    delete req.cookies;
   }
   next();
 });

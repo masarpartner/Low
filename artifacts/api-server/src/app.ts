@@ -40,10 +40,15 @@ app.use(
   }),
 );
 app.use(cors({ credentials: true, origin: true }));
-// Handle Vercel Serverless Function pre-parsed body
+// Handle Vercel Serverless Function pre-parsed body and pre-populated cookies
 app.use((req, _res, next) => {
   if (req.body && typeof req.body === "object" && !(req as any)._body) {
     (req as any)._body = true;
+  }
+  // Ensure req.secret is always set for signed cookies (Vercel edge doesn't set it)
+  req.secret = env.sessionSecret;
+  if (req.cookies && !req.signedCookies) {
+    delete (req as any).cookies;
   }
   next();
 });

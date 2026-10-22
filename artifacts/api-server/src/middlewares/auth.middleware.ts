@@ -42,7 +42,23 @@ export function clearSessionCookie(res: Response): void {
 }
 
 function readSessionCookie(req: Request): SessionCookiePayload | null {
-  const raw = req.signedCookies?.[SESSION_COOKIE_NAME] as string | undefined;
+  let raw = req.signedCookies?.[SESSION_COOKIE_NAME] as string | undefined;
+
+  // Fallback for Vercel/serverless environments where cookies might be pre-parsed
+  if (!raw && req.cookies?.[SESSION_COOKIE_NAME]) {
+    const candidate = req.cookies[SESSION_COOKIE_NAME];
+    raw = candidate.startsWith("s:") ? candidate.slice(2).split(".")[0] : candidate;
+  }
+
+  // Fallback direct header parsing
+  if (!raw && req.headers.cookie) {
+    const match = req.headers.cookie.split(";").map((s) => s.trim()).find((s) => s.startsWith(`${SESSION_COOKIE_NAME}=`));
+    if (match) {
+      const val = decodeURIComponent(match.slice(SESSION_COOKIE_NAME.length + 1));
+      raw = val.startsWith("s:") ? val.slice(2).split(".")[0] : val;
+    }
+  }
+
   if (!raw) {
     return null;
   }

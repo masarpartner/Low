@@ -40,6 +40,13 @@ app.use(
   }),
 );
 app.use(cors({ credentials: true, origin: true }));
+// Handle Vercel Serverless Function pre-parsed body
+app.use((req, _res, next) => {
+  if (req.body && typeof req.body === "object" && !(req as any)._body) {
+    (req as any)._body = true;
+  }
+  next();
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser(env.sessionSecret));
@@ -73,10 +80,15 @@ if (distPath) {
     if (req.path.startsWith("/api")) return next();
     res.sendFile(path.join(distPath, "index.html"));
   });
-} else {
-  logger.warn("[Server] No dist/index.html found — frontend will not be served.");
-  // Still mount router as fallback for API-only debugging
-  app.use(router);
 }
+
+// Global Express error handler — ensures JSON responses instead of default HTML 500
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error({ err, path: req.path, method: req.method }, "Express request error");
+  res.status(err.status || 500).json({
+    error: err.message || "Internal Server Error",
+    stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
+  });
+});
 
 export default app;

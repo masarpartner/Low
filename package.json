@@ -3,10 +3,10 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "dev": "npx --yes pnpm run --parallel --filter @workspace/api-server --filter @workspace/court-session-management dev",
-    "build": "npx --yes pnpm run typecheck && npx --yes pnpm -r --if-present run build && node scripts/copy-dist.js",
-    "typecheck:libs": "npx --yes tsc --build",
-    "typecheck": "npx --yes pnpm run typecheck:libs && npx --yes pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "dev": "pnpm run --parallel --filter @workspace/api-server --filter @workspace/court-session-management dev",
+    "build": "pnpm -r --if-present run build && node scripts/copy-dist.js",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
   "private": true,
   "pnpm": {

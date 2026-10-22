@@ -55202,7 +55202,7 @@ function setSessionCookie(res, userData) {
     httpOnly: true,
     sameSite: "strict",
     secure: env.isProduction,
-    signed: true,
+    signed: false,
     maxAge: SESSION_MAX_AGE_MS,
     path: "/"
   });
@@ -55211,33 +55211,40 @@ function clearSessionCookie(res) {
   res.clearCookie(SESSION_COOKIE_NAME, { path: "/" });
 }
 function readSessionCookie(req) {
-  let raw = req.signedCookies?.[SESSION_COOKIE_NAME];
-  if (!raw && req.cookies?.[SESSION_COOKIE_NAME]) {
-    const candidate = req.cookies[SESSION_COOKIE_NAME];
-    raw = candidate.startsWith("s:") ? candidate.slice(2).split(".")[0] : candidate;
-  }
+  let raw = req.cookies?.[SESSION_COOKIE_NAME] || req.signedCookies?.[SESSION_COOKIE_NAME];
   if (!raw && req.headers.cookie) {
     const match = req.headers.cookie.split(";").map((s) => s.trim()).find((s) => s.startsWith(`${SESSION_COOKIE_NAME}=`));
     if (match) {
-      const val = decodeURIComponent(match.slice(SESSION_COOKIE_NAME.length + 1));
-      raw = val.startsWith("s:") ? val.slice(2).split(".")[0] : val;
+      raw = decodeURIComponent(match.slice(SESSION_COOKIE_NAME.length + 1));
     }
   }
   if (!raw) {
     return null;
   }
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed.username !== "string" || typeof parsed.issuedAt !== "number") {
-      return null;
-    }
-    if (Date.now() - parsed.issuedAt > SESSION_MAX_AGE_MS) {
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
+  if (typeof raw === "object" && raw !== null) {
+    return raw;
   }
+  if (typeof raw === "string") {
+    if (raw.startsWith("s:")) {
+      raw = raw.slice(2).split(".")[0];
+    }
+    if (raw.startsWith("j:")) {
+      raw = raw.slice(2);
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed.username !== "string" || typeof parsed.issuedAt !== "number") {
+        return null;
+      }
+      if (Date.now() - parsed.issuedAt > SESSION_MAX_AGE_MS) {
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 function attachAuthUser(req, _res, next) {
   const session = readSessionCookie(req);

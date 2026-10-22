@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { attachAuthUser, requireAuth } from "../middlewares/auth.middleware";
+import { attachAuthUser, requireAuth, requireActiveSubscription } from "../middlewares/auth.middleware";
 import { getSessionReport, saveSessionReport } from "../services/session.service";
 import { isGoogleSheetsConfigured } from "../config/env";
 import { logger } from "../lib/logger";
@@ -7,7 +7,7 @@ import { logger } from "../lib/logger";
 const router: IRouter = Router();
 
 /** GET /api/sessions/:id/report — fetch the saved report (null if none) */
-router.get("/sessions/:id/report", attachAuthUser, requireAuth, async (req, res) => {
+router.get("/sessions/:id/report", attachAuthUser, requireAuth, requireActiveSubscription, async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid session id." });
@@ -29,7 +29,7 @@ router.get("/sessions/:id/report", attachAuthUser, requireAuth, async (req, res)
 });
 
 /** PUT /api/sessions/:id/report — create or update the report */
-router.put("/sessions/:id/report", attachAuthUser, requireAuth, async (req, res) => {
+router.put("/sessions/:id/report", attachAuthUser, requireAuth, requireActiveSubscription, async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid session id." });

@@ -15,6 +15,10 @@ export interface AppUser {
   status?: "active" | "suspended";
   subscription_end_date?: string | null;
   subscription_notes?: string | null;
+  plan_tier?: "plus" | "pro";
+  billing_cycle?: "monthly" | "annual";
+  ai_quota_limit?: number;
+  ai_usage_count?: number;
   google_service_account_json?: string | null;
   google_spreadsheet_id?: string | null;
   google_sheet_name?: string | null;
@@ -65,8 +69,23 @@ export function loadLocalUsers(): AppUserWithHash[] {
         const raw = readFileSync(p, "utf-8");
         const list = JSON.parse(raw);
         if (Array.isArray(list) && list.length > 0) {
-          _localUsersCache = list;
-          return list;
+          // Normalize existing users with plan and quota fields
+          const normalized = list.map((u: any) => {
+            const isAdmin = u.role === "admin";
+            const planTier = u.plan_tier || (isAdmin ? "pro" : "plus");
+            const quota = u.ai_quota_limit !== undefined
+              ? u.ai_quota_limit
+              : (isAdmin ? -1 : (planTier === "pro" ? 300 : 50));
+            return {
+              ...u,
+              plan_tier: planTier,
+              billing_cycle: u.billing_cycle || "annual",
+              ai_quota_limit: quota,
+              ai_usage_count: u.ai_usage_count || 0,
+            };
+          });
+          _localUsersCache = normalized;
+          return normalized;
         }
       }
     } catch {}
@@ -88,6 +107,10 @@ export function loadLocalUsers(): AppUserWithHash[] {
       status: "active",
       subscription_end_date: null,
       subscription_notes: "حساب المشرف العام الدائم",
+      plan_tier: "pro",
+      billing_cycle: "annual",
+      ai_quota_limit: -1, // Unlimited for master admin
+      ai_usage_count: 0,
       has_google_service: false,
       google_spreadsheet_id: null,
       google_sheet_name: null,
@@ -102,7 +125,11 @@ export function loadLocalUsers(): AppUserWithHash[] {
       display_name: "المحامي الافتراضي",
       status: "active",
       subscription_end_date: oneYearFromNow.toISOString(),
-      subscription_notes: "اشتراك سنوي معتمد (باقة المكاتب)",
+      subscription_notes: "اشتراك سنوي معتمد (باقة بلس - Plus)",
+      plan_tier: "plus",
+      billing_cycle: "annual",
+      ai_quota_limit: 50,
+      ai_usage_count: 0,
       has_google_service: false,
       google_spreadsheet_id: null,
       google_sheet_name: null,
@@ -352,6 +379,42 @@ export async function listSupabaseUsers(): Promise<AppUser[]> {
   const client = getSupabaseClient();
   if (!client) {
     const local = loadLocalUsers();
+    return local.map((u) => {
+      const isAdmin = u.role === "admin";
+      const planTier = u.plan_tier || (isAdmin ? "pro" : "plus");
+      const quota = u.ai_quota_limit !== undefined
+        ? u.ai_quota_limit
+        : (isAdmin ? -1 : (planTier === "pro" ? 300 : 50));
+      return {
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        role: u.role || "staff",
+        display_name: u.display_name,
+        status: u.status || "active",
+        subscription_end_date: u.subscription_end_date || null,
+        subscription_notes: u.subscription_notes || null,
+        plan_tier: planTier,
+        billing_cycle: u.billing_cycle || "annual",
+        ai_quota_limit: quota,
+        ai_usage_count: u.ai_usage_count || 0,
+        has_google_service: Boolean(u.google_service_account_json && u.google_service_account_json.trim().length > 10),
+        google_spreadsheet_id: u.google_spreadsheet_id || null,
+        google_sheet_name: u.google_sheet_name || null,
+        created_at: u.created_at,
+      };
+    });
+  }
+
+  const tableName = env.supabaseTableName;
+  const { data, error } = await client
+    .from(tableName)
+    .select("id, username, email, role, display_name, status, subscription_end_date, subscription_notes, plan_tier, billing_cycle, ai_quota_limit, ai_usage_count, google_service_account_json, google_spreadsheet_id, google_sheet_name, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    logger.error({ error }, "Failed to list users from Supabase, falling back to local users");
+    const local = loadLocalUsers();
     return local.map((u) => ({
       id: u.id,
       username: u.username,
@@ -361,24 +424,15 @@ export async function listSupabaseUsers(): Promise<AppUser[]> {
       status: u.status || "active",
       subscription_end_date: u.subscription_end_date || null,
       subscription_notes: u.subscription_notes || null,
+      plan_tier: u.plan_tier || (u.role === "admin" ? "pro" : "plus"),
+      billing_cycle: u.billing_cycle || "annual",
+      ai_quota_limit: u.ai_quota_limit !== undefined ? u.ai_quota_limit : (u.plan_tier === "pro" ? 300 : 50),
+      ai_usage_count: u.ai_usage_count || 0,
       has_google_service: Boolean(u.google_service_account_json && u.google_service_account_json.trim().length > 10),
       google_spreadsheet_id: u.google_spreadsheet_id || null,
       google_sheet_name: u.google_sheet_name || null,
       created_at: u.created_at,
     }));
-  }
-
-  const tableName = env.supabaseTableName;
-  const { data, error } = await client
-    .from(tableName)
-    .select("id, username, email, role, display_name, status, subscription_end_date, subscription_notes, google_service_account_json, google_spreadsheet_id, google_sheet_name, created_at")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    logger.error({ error }, "Failed to list users from Supabase");
-    throw new Error(
-      `فشل جلب المستخدمين من Supabase: ${error.message}. تأكد من إنشاء جدول ${tableName}.`,
-    );
   }
 
   return (data || []).map((u: any) => ({
@@ -390,6 +444,10 @@ export async function listSupabaseUsers(): Promise<AppUser[]> {
     status: u.status || "active",
     subscription_end_date: u.subscription_end_date || null,
     subscription_notes: u.subscription_notes || null,
+    plan_tier: u.plan_tier || (u.role === "admin" ? "pro" : "plus"),
+    billing_cycle: u.billing_cycle || "annual",
+    ai_quota_limit: u.ai_quota_limit !== undefined ? u.ai_quota_limit : (u.plan_tier === "pro" ? 300 : 50),
+    ai_usage_count: u.ai_usage_count || 0,
     has_google_service: Boolean(u.google_service_account_json && u.google_service_account_json.trim().length > 10),
     google_spreadsheet_id: u.google_spreadsheet_id || null,
     google_sheet_name: u.google_sheet_name || null,
@@ -428,6 +486,9 @@ export async function createSupabaseUser(input: {
   status?: "active" | "suspended";
   subscription_end_date?: string;
   subscription_notes?: string;
+  plan_tier?: "plus" | "pro";
+  billing_cycle?: "monthly" | "annual";
+  ai_quota_limit?: number;
   google_service_account_json?: string;
   google_spreadsheet_id?: string;
   google_sheet_name?: string;
@@ -447,6 +508,13 @@ export async function createSupabaseUser(input: {
   const status = input.status || "active";
   const subscription_end_date = input.subscription_end_date || null;
   const subscription_notes = input.subscription_notes?.trim() || null;
+  const role = input.role || "staff";
+  const plan_tier: "plus" | "pro" = input.plan_tier || (role === "admin" ? "pro" : "plus");
+  const billing_cycle: "monthly" | "annual" = input.billing_cycle || "annual";
+  const ai_quota_limit = input.ai_quota_limit !== undefined
+    ? input.ai_quota_limit
+    : (role === "admin" ? -1 : (plan_tier === "pro" ? 300 : 50));
+  const ai_usage_count = 0;
 
   const client = getSupabaseClient();
   if (!client) {
@@ -459,11 +527,15 @@ export async function createSupabaseUser(input: {
       id: `local-${crypto.randomUUID()}`,
       username,
       email: input.email?.trim() || null,
-      role: input.role || "staff",
+      role,
       display_name: input.display_name?.trim() || username,
       status,
       subscription_end_date,
       subscription_notes,
+      plan_tier,
+      billing_cycle,
+      ai_quota_limit,
+      ai_usage_count,
       google_service_account_json: sanitizedGoogleJson,
       google_spreadsheet_id: input.google_spreadsheet_id?.trim() || null,
       google_sheet_name: input.google_sheet_name?.trim() || null,
@@ -484,6 +556,10 @@ export async function createSupabaseUser(input: {
       status: newUser.status,
       subscription_end_date: newUser.subscription_end_date,
       subscription_notes: newUser.subscription_notes,
+      plan_tier: newUser.plan_tier,
+      billing_cycle: newUser.billing_cycle,
+      ai_quota_limit: newUser.ai_quota_limit,
+      ai_usage_count: newUser.ai_usage_count,
       has_google_service: newUser.has_google_service,
       google_spreadsheet_id: newUser.google_spreadsheet_id,
       google_sheet_name: newUser.google_sheet_name,
@@ -508,11 +584,15 @@ export async function createSupabaseUser(input: {
     username,
     email: input.email?.trim() || null,
     password_hash,
-    role: input.role || "staff",
+    role,
     display_name: input.display_name?.trim() || username,
     status,
     subscription_end_date,
     subscription_notes,
+    plan_tier,
+    billing_cycle,
+    ai_quota_limit,
+    ai_usage_count,
     google_service_account_json: sanitizedGoogleJson,
     google_spreadsheet_id: input.google_spreadsheet_id?.trim() || null,
     google_sheet_name: input.google_sheet_name?.trim() || null,
@@ -521,7 +601,7 @@ export async function createSupabaseUser(input: {
   const { data, error } = await client
     .from(tableName)
     .insert([newUserData])
-    .select("id, username, email, role, display_name, status, subscription_end_date, subscription_notes, google_spreadsheet_id, google_sheet_name, created_at")
+    .select("id, username, email, role, display_name, status, subscription_end_date, subscription_notes, plan_tier, billing_cycle, ai_quota_limit, ai_usage_count, google_spreadsheet_id, google_sheet_name, created_at")
     .single();
 
   if (error) {
@@ -538,6 +618,10 @@ export async function createSupabaseUser(input: {
     status: data.status || "active",
     subscription_end_date: data.subscription_end_date || null,
     subscription_notes: data.subscription_notes || null,
+    plan_tier: data.plan_tier || plan_tier,
+    billing_cycle: data.billing_cycle || billing_cycle,
+    ai_quota_limit: data.ai_quota_limit ?? ai_quota_limit,
+    ai_usage_count: data.ai_usage_count ?? 0,
     has_google_service: Boolean(sanitizedGoogleJson),
     google_spreadsheet_id: data.google_spreadsheet_id,
     google_sheet_name: data.google_sheet_name,
@@ -583,6 +667,10 @@ export async function updateSupabaseUser(
     status?: "active" | "suspended";
     subscription_end_date?: string | null;
     subscription_notes?: string | null;
+    plan_tier?: "plus" | "pro";
+    billing_cycle?: "monthly" | "annual";
+    ai_quota_limit?: number;
+    ai_usage_count?: number;
     google_service_account_json?: string;
     google_spreadsheet_id?: string;
     google_sheet_name?: string;
@@ -608,6 +696,16 @@ export async function updateSupabaseUser(
     if (input.status !== undefined) user.status = input.status;
     if (input.subscription_end_date !== undefined) user.subscription_end_date = input.subscription_end_date;
     if (input.subscription_notes !== undefined) user.subscription_notes = input.subscription_notes;
+    if (input.plan_tier !== undefined) {
+      user.plan_tier = input.plan_tier;
+      if (input.ai_quota_limit === undefined) {
+        user.ai_quota_limit = user.role === "admin" ? -1 : (user.plan_tier === "pro" ? 300 : 50);
+      }
+    }
+    if (input.billing_cycle !== undefined) user.billing_cycle = input.billing_cycle;
+    if (input.ai_quota_limit !== undefined) user.ai_quota_limit = input.ai_quota_limit;
+    if (input.ai_usage_count !== undefined) user.ai_usage_count = input.ai_usage_count;
+
     if (input.google_service_account_json !== undefined) {
       user.google_service_account_json = sanitizeGoogleServiceJson(input.google_service_account_json);
       user.has_google_service = Boolean(user.google_service_account_json);
@@ -625,6 +723,10 @@ export async function updateSupabaseUser(
       status: user.status,
       subscription_end_date: user.subscription_end_date,
       subscription_notes: user.subscription_notes,
+      plan_tier: user.plan_tier,
+      billing_cycle: user.billing_cycle,
+      ai_quota_limit: user.ai_quota_limit,
+      ai_usage_count: user.ai_usage_count,
       has_google_service: user.has_google_service,
       google_spreadsheet_id: user.google_spreadsheet_id,
       google_sheet_name: user.google_sheet_name,
@@ -648,6 +750,10 @@ export async function updateSupabaseUser(
   if (input.status !== undefined) updates.status = input.status;
   if (input.subscription_end_date !== undefined) updates.subscription_end_date = input.subscription_end_date;
   if (input.subscription_notes !== undefined) updates.subscription_notes = input.subscription_notes?.trim() || null;
+  if (input.plan_tier !== undefined) updates.plan_tier = input.plan_tier;
+  if (input.billing_cycle !== undefined) updates.billing_cycle = input.billing_cycle;
+  if (input.ai_quota_limit !== undefined) updates.ai_quota_limit = input.ai_quota_limit;
+  if (input.ai_usage_count !== undefined) updates.ai_usage_count = input.ai_usage_count;
 
   if (input.google_service_account_json !== undefined) {
     updates.google_service_account_json = sanitizeGoogleServiceJson(input.google_service_account_json);
@@ -669,7 +775,7 @@ export async function updateSupabaseUser(
     .from(tableName)
     .update(updates)
     .eq("id", id)
-    .select("id, username, email, role, display_name, status, subscription_end_date, subscription_notes, google_service_account_json, google_spreadsheet_id, google_sheet_name, created_at")
+    .select("id, username, email, role, display_name, status, subscription_end_date, subscription_notes, plan_tier, billing_cycle, ai_quota_limit, ai_usage_count, google_service_account_json, google_spreadsheet_id, google_sheet_name, created_at")
     .single();
 
   if (error) {
@@ -686,11 +792,47 @@ export async function updateSupabaseUser(
     status: data.status || "active",
     subscription_end_date: data.subscription_end_date || null,
     subscription_notes: data.subscription_notes || null,
+    plan_tier: data.plan_tier || input.plan_tier || "plus",
+    billing_cycle: data.billing_cycle || input.billing_cycle || "annual",
+    ai_quota_limit: data.ai_quota_limit ?? 50,
+    ai_usage_count: data.ai_usage_count ?? 0,
     has_google_service: Boolean(data.google_service_account_json && data.google_service_account_json.trim().length > 10),
     google_spreadsheet_id: data.google_spreadsheet_id,
     google_sheet_name: data.google_sheet_name,
     created_at: data.created_at,
   };
+}
+
+/**
+ * Increment user's AI usage count upon successful extraction
+ */
+export async function incrementUserAiUsage(
+  userId: string,
+): Promise<{ ai_usage_count: number; ai_quota_limit: number; plan_tier: string }> {
+  try {
+    const local = loadLocalUsers();
+    const index = local.findIndex((u) => u.id === userId || u.username === userId);
+    if (index !== -1) {
+      const u = local[index];
+      u.ai_usage_count = (u.ai_usage_count || 0) + 1;
+      saveLocalUsers(local);
+      return {
+        ai_usage_count: u.ai_usage_count,
+        ai_quota_limit: u.ai_quota_limit !== undefined ? u.ai_quota_limit : (u.plan_tier === "pro" ? 300 : 50),
+        plan_tier: u.plan_tier || "plus",
+      };
+    }
+  } catch (err) {
+    logger.warn({ err, userId }, "Failed to increment user AI usage");
+  }
+  return { ai_usage_count: 1, ai_quota_limit: 50, plan_tier: "plus" };
+}
+
+/**
+ * Reset a user's AI quota usage (Admin action or monthly cycle)
+ */
+export async function resetUserAiUsage(userId: string): Promise<AppUser> {
+  return updateSupabaseUser(userId, { ai_usage_count: 0 });
 }
 
 /**

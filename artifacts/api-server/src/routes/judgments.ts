@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { attachAuthUser, requireAuth } from "../middlewares/auth.middleware";
+import { attachAuthUser, requireAuth, requireActiveSubscription } from "../middlewares/auth.middleware";
 import { logger } from "../lib/logger";
 import {
   ensureJudgmentSheetReady,
@@ -11,6 +11,9 @@ import {
 } from "../services/judgment.sheets.service";
 
 const router: IRouter = Router();
+
+// Stop all Judgment Excel Sheet read/write operations if subscription is suspended or expired
+router.use(attachAuthUser, requireAuth, requireActiveSubscription);
 
 export interface JudgmentRecord {
   id: number;

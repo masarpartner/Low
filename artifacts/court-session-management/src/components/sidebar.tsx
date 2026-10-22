@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, MessageSquare, Calendar, Moon, Sun, LogOut, Settings, Scale, FileText, ShieldCheck, Gavel, CheckSquare, Users } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Calendar, Moon, Sun, LogOut, Settings, Scale, FileText, ShieldCheck, Gavel, CheckSquare, Users, Sparkles, Shield, AlertTriangle, Database } from 'lucide-react';
 import { useTheme } from './theme-provider';
-import { useLogout } from '@workspace/api-client-react';
+import { useLogout, useGetCurrentUser } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { GlobalSearch } from './global-search';
@@ -27,6 +27,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const logoutMutation = useLogout();
+  const { data: currentUser } = useGetCurrentUser();
+  const user = currentUser as any;
 
   const handleLogout = () => {
     onNavigate?.();
@@ -146,6 +148,66 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           );
         })}
       </nav>
+
+      {/* Subscription & Excel Drive Connection Info */}
+      {user && (
+        <div
+          className="mx-3 mb-2 p-2.5 rounded-xl border space-y-1.5 text-xs"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            borderColor: user.isExpired || user.isSuspended ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.1)',
+          }}
+        >
+          {user.isExpired || user.isSuspended ? (
+            <div className="space-y-1 text-red-300">
+              <div className="flex items-center gap-1.5 font-bold text-[11px] text-red-400">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 animate-pulse" />
+                <span>الاشتراك منتهي الصلاحية ❌</span>
+              </div>
+              <p className="text-[10px] leading-tight text-red-200/80">
+                تم إيقاف المزامنة مع الإكسل والتقارير والذكاء الاصطناعي لحين التجديد.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  {user.plan_tier === 'pro' ? 'باقة برو (Pro)' : 'باقة بلس (Plus)'}
+                </span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff' }}>
+                  {user.billing_cycle === 'monthly' ? 'شهري' : 'سنوي'}
+                </span>
+              </div>
+
+              {user.role !== 'admin' && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px]" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                    <span>استهلاك الذكاء الاصطناعي</span>
+                    <span className="font-mono font-bold text-amber-300">
+                      {user.ai_usage_count || 0} / {user.ai_quota_limit || 50}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${Math.min(100, Math.round(((user.ai_usage_count || 0) / (user.ai_quota_limit || 50)) * 100))}%`,
+                        background: (user.ai_usage_count || 0) >= (user.ai_quota_limit || 50) ? '#ef4444' : '#B88A3B',
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-1 text-[10px] pt-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                <Database className="w-2.5 h-2.5 text-emerald-400" />
+                <span>متصل مباشرة بـ Google Drive Sheets</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Footer actions */}
       <div

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { attachAuthUser, requireAuth } from "../middlewares/auth.middleware";
+import { attachAuthUser, requireAuth, requireActiveSubscription } from "../middlewares/auth.middleware";
 import { logger } from "../lib/logger";
 import {
   ensurePoaSheetReady,
@@ -11,6 +11,9 @@ import {
 import moment from "moment-hijri";
 
 const router: IRouter = Router();
+
+// Stop all POA Excel Sheet read/write operations if subscription is suspended or expired
+router.use(attachAuthUser, requireAuth, requireActiveSubscription);
 
 interface PoaRecord {
   clientName: string;

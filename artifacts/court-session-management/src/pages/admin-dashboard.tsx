@@ -29,6 +29,10 @@ import {
   Calendar,
   Clock,
   RotateCw,
+  RotateCcw,
+  Zap,
+  Crown,
+  CreditCard,
   AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -50,6 +54,10 @@ export interface AppUser {
   status?: 'active' | 'suspended';
   subscription_end_date?: string | null;
   subscription_notes?: string | null;
+  plan_tier?: 'plus' | 'pro';
+  billing_cycle?: 'monthly' | 'annual';
+  ai_quota_limit?: number;
+  ai_usage_count?: number;
   google_service_account_json?: string | null;
   google_spreadsheet_id?: string | null;
   google_sheet_name?: string | null;
@@ -164,7 +172,7 @@ export default function AdminDashboardPage() {
   const logoutMutation = useLogout();
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'users' | 'supabase'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'plans' | 'supabase'>('users');
 
   // Loading states
   const [loading, setLoading] = useState(true);
@@ -192,6 +200,9 @@ export default function AdminDashboardPage() {
     loginUrl: string;
     subscriptionEndDate?: string | null;
     subscriptionDurationText?: string;
+    planTier?: string;
+    billingCycle?: string;
+    aiQuota?: number;
   } | null>(null);
   const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
   const [copiedHandover, setCopiedHandover] = useState(false);
@@ -217,9 +228,12 @@ export default function AdminDashboardPage() {
     email: '',
     password: '',
     role: 'staff' as 'admin' | 'staff',
+    plan_tier: 'plus' as 'plus' | 'pro',
+    billing_cycle: 'annual' as 'monthly' | 'annual',
+    ai_quota_limit: 50,
     subscription_end_date: (() => {
       const d = new Date();
-      d.setMonth(d.getMonth() + 1);
+      d.setFullYear(d.getFullYear() + 1);
       return d.toISOString().split('T')[0];
     })(),
     subscription_notes: '',
@@ -235,6 +249,10 @@ export default function AdminDashboardPage() {
     email: '',
     role: 'staff' as 'admin' | 'staff',
     status: 'active' as 'active' | 'suspended',
+    plan_tier: 'plus' as 'plus' | 'pro',
+    billing_cycle: 'annual' as 'monthly' | 'annual',
+    ai_quota_limit: 50,
+    ai_usage_count: 0,
     subscription_end_date: '',
     subscription_notes: '',
     google_service_account_json: '',
@@ -456,6 +474,8 @@ export default function AdminDashboardPage() {
 
   const handleCopyHandover = () => {
     if (!handoverData) return;
+    const planText = handoverData.planTier === 'pro' ? 'برو (Pro) ⭐' : 'بلس (Plus) ⚡';
+    const cycleText = handoverData.billingCycle === 'annual' ? 'سنوي (365 يوماً)' : 'شهري (30 يوماً)';
     const text = `السلام عليكم ورحمة الله وبركاته،
 أهلاً بك أستاذ ${handoverData.displayName || handoverData.username}،
 تم بنجاح تفعيل اشتراكك وحسابك في منصة إدارة الجلسات والدعاوى القضائية:
@@ -469,6 +489,15 @@ ${handoverData.username}
 🔑 كلمة المرور:
 ${handoverData.password || '12345'}
 
+📦 باقة الاشتراك:
+${planText} - دورة الفوترة: ${cycleText}
+
+🤖 حصة الذكاء الاصطناعي الشهرية:
+${handoverData.aiQuota || 50} تحليل رسائل واستدعاء ذكي شهرياً (معزولة ومستقلة)
+
+📊 التخزين السحابي:
+ربط مباشر بـ Google Sheets / Drive لحفظ الجلسات والبيانات فورياً
+
 📅 تفاصيل الاشتراك:
 ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverData.subscriptionEndDate} (${handoverData.subscriptionDurationText || 'نشط'})` : 'اشتراك دائم ومفتوح'}
 
@@ -478,6 +507,33 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
     setCopiedHandover(true);
     toast({ title: 'تم النسخ بنجاح 📋', description: 'تم نسخ رسالة تسليم الحساب كاملة وجاهزة للإرسال.' });
     setTimeout(() => setCopiedHandover(false), 2500);
+  };
+
+  // Reset user's AI quota usage
+  const handleResetAiUsage = async (userId: string, username: string) => {
+    if (!confirm(`هل أنت متأكد من رغبتك في إعادة تعيين (تصفير) رصيد استهلاك الذكاء الاصطناعي للمحامي (${username})؟`)) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/users/${userId}/reset-ai-usage`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'فشل تصفير استهلاك الذكاء الاصطناعي');
+      }
+      toast({
+        title: 'تم تصفير الرصيد بنجاح 🔄',
+        description: `تمت إعادة تعيين استهلاك الذكاء الاصطناعي لـ (${username}) إلى 0.`,
+      });
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   // Toggle user status: suspend / reactivate
@@ -892,6 +948,18 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
               }`}
             />
           </button>
+
+          <button
+            onClick={() => setActiveTab('plans')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-t-xl transition-all border-b-2 ${
+              activeTab === 'plans'
+                ? 'border-emerald-500 text-emerald-500 bg-emerald-500/5'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-emerald-500" />
+            <span>باقات وخطط الاشتراك (Plus & Pro) 💎</span>
+          </button>
         </div>
 
         {/* Tab 1: User Management */}
@@ -952,7 +1020,9 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
                       <th className="py-3 px-3 text-start">المستخدم</th>
                       <th className="py-3 px-3 text-start">الاسم الظاهر</th>
                       <th className="py-3 px-3 text-start">الصلاحية</th>
+                      <th className="py-3 px-3 text-start">الباقة والفوترة 📦</th>
                       <th className="py-3 px-3 text-start">حالة الاشتراك ⚖️</th>
+                      <th className="py-3 px-3 text-start">استهلاك الذكاء الاصطناعي 🤖</th>
                       <th className="py-3 px-3 text-start">تاريخ الانتهاء</th>
                       <th className="py-3 px-3 text-start">قاعدة Google Sheets</th>
                       <th className="py-3 px-3 text-end">الإجراءات والتحكم</th>
@@ -961,7 +1031,7 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
                   <tbody className="divide-y divide-border">
                     {loading ? (
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-muted-foreground">
+                        <td colSpan={9} className="py-12 text-center text-muted-foreground">
                           <div className="flex flex-col items-center gap-2">
                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
                             <span className="text-xs">جارٍ جلب الحسابات...</span>
@@ -970,7 +1040,7 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
                       </tr>
                     ) : filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-muted-foreground">
+                        <td colSpan={9} className="py-12 text-center text-muted-foreground">
                           <div className="flex flex-col items-center gap-2">
                             <Users className="w-8 h-8 opacity-30" />
                             <p className="text-sm font-medium">لا توجد حسابات مطابقة</p>
@@ -1016,6 +1086,32 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
                             </td>
                             <td className="py-3 px-3">
                               {u.role === 'admin' ? (
+                                <Badge variant="outline" className="border-amber-500/30 text-amber-600 dark:text-amber-400 font-bold text-xs">
+                                  باقة المشرف (غير محدودة)
+                                </Badge>
+                              ) : (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5">
+                                    {u.plan_tier === 'pro' ? (
+                                      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 gap-1 text-[11px] font-bold">
+                                        <Crown className="w-3 h-3 text-amber-500" />
+                                        <span>برو (Pro)</span>
+                                      </Badge>
+                                    ) : (
+                                      <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30 gap-1 text-[11px] font-bold">
+                                        <Zap className="w-3 h-3 text-sky-500" />
+                                        <span>بلس (Plus)</span>
+                                      </Badge>
+                                    )}
+                                    <Badge variant="outline" className="text-[10px] text-muted-foreground border-border">
+                                      {u.billing_cycle === 'annual' ? 'سنوي 📅' : 'شهري 🗓️'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3 px-3">
+                              {u.role === 'admin' ? (
                                 <Badge variant="outline" className="text-xs border-slate-300 dark:border-slate-700">
                                   دائم (مشرف)
                                 </Badge>
@@ -1032,6 +1128,49 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
                                   )}
                                   <span>{subInfo.statusText}</span>
                                 </Badge>
+                              )}
+                            </td>
+                            <td className="py-3 px-3">
+                              {u.role === 'admin' ? (
+                                <span className="text-xs text-muted-foreground font-mono">غير محدود (∞)</span>
+                              ) : (
+                                <div className="space-y-1 min-w-[130px]">
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span className="font-mono font-bold text-foreground">
+                                      {u.ai_usage_count || 0} / {u.ai_quota_limit ?? 50}
+                                    </span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleResetAiUsage(u.id, u.username)}
+                                      disabled={actionLoading}
+                                      title="تصفير استهلاك الذكاء الاصطناعي"
+                                      className="h-5 px-1.5 text-[10px] gap-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                                    >
+                                      <RotateCcw className="w-2.5 h-2.5" />
+                                      <span>تصفير</span>
+                                    </Button>
+                                  </div>
+                                  <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                    <div
+                                      className={`h-full transition-all duration-300 ${
+                                        (u.ai_usage_count || 0) >= (u.ai_quota_limit ?? 50)
+                                          ? 'bg-rose-500'
+                                          : (u.ai_usage_count || 0) >= ((u.ai_quota_limit ?? 50) * 0.8)
+                                          ? 'bg-amber-500'
+                                          : 'bg-emerald-500'
+                                      }`}
+                                      style={{
+                                        width: `${Math.min(100, Math.round(((u.ai_usage_count || 0) / ((u.ai_quota_limit ?? 50) || 1)) * 100))}%`,
+                                      }}
+                                    />
+                                  </div>
+                                  {(u.ai_usage_count || 0) >= (u.ai_quota_limit ?? 50) && (
+                                    <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">
+                                      تم استهلاك الحصة ⚠️
+                                    </p>
+                                  )}
+                                </div>
                               )}
                             </td>
                             <td className="py-3 px-3">
@@ -1132,6 +1271,9 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
                                       loginUrl: `${window.location.origin}/login`,
                                       subscriptionEndDate: u.subscription_end_date || null,
                                       subscriptionDurationText: subInfo.statusText,
+                                      planTier: u.plan_tier || 'plus',
+                                      billingCycle: u.billing_cycle || 'annual',
+                                      aiQuota: u.ai_quota_limit ?? 50,
                                     });
                                     setIsHandoverModalOpen(true);
                                   }}
@@ -1165,6 +1307,10 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
                                       email: u.email || '',
                                       role: u.role,
                                       status: u.status || 'active',
+                                      plan_tier: u.plan_tier || 'plus',
+                                      billing_cycle: u.billing_cycle || 'annual',
+                                      ai_quota_limit: u.ai_quota_limit ?? 50,
+                                      ai_usage_count: u.ai_usage_count || 0,
                                       subscription_end_date: u.subscription_end_date || '',
                                       subscription_notes: u.subscription_notes || '',
                                       google_service_account_json: '',
@@ -1204,134 +1350,229 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
           </div>
         )}
 
-        {/* Tab 2: Supabase Database Configuration */}
-        {activeTab === 'supabase' && (
-          <div className="space-y-6 fade-in-up">
-            {/* Supabase Settings Card */}
-            <div className="rounded-2xl border border-sky-500/30 bg-card overflow-hidden shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-6 py-5 border-b border-border bg-sky-500/10 gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center">
-                    <Database className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+        {/* Tab 3: Plans & Pricing (Plus & Pro) */}
+        {activeTab === 'plans' && (
+          <div className="space-y-8 fade-in-up">
+            {/* Header info */}
+            <div className="text-center max-w-3xl mx-auto space-y-3">
+              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-xs px-3 py-1 font-bold">
+                باقات الاشتراك الرسمية للمنظومة ⚖️
+              </Badge>
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                اختر الباقة المناسبة لاحتياجات مكتبك أو ممارستك القانونية
+              </h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                خطط مرنة مبنية على <strong>الربط المباشر بـ Google Drive (Excel)</strong> وبدون تعقيدات قواعد البيانات، مع <strong>تكامل الذكاء الاصطناعي المركزي</strong> للمشرف وعزل كامل للحصص.
+              </p>
+            </div>
+
+            {/* Architecture Explanatory Banner */}
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
+              <h3 className="text-base font-bold flex items-center gap-2 text-foreground">
+                <Sparkles className="w-5 h-5 text-amber-500" />
+                <span>المحددات التقنية وآلية عمل الاشتراكات في المنظومة:</span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+                <div className="p-4 rounded-xl border border-sky-500/20 bg-sky-500/5 space-y-1.5">
+                  <div className="font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1.5 text-sm">
+                    <Zap className="w-4 h-4" />
+                    <span>الذكاء الاصطناعي المركزي</span>
                   </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    يعمل الذكاء الاصطناعي مركزياً عبر حساب المشرف العام. لا يدفع المحامي أي تكاليف توكنز، بل يستفيد مباشرة من حصته المحددة في باقته.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 space-y-1.5">
+                  <div className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 text-sm">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>عزل الحصص (Isolation)</span>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    لكل مشترك عداد وحصة ذكاء اصطناعي مستقلة تماماً داخل النظام لضمان عدم استهلاك مستخدم لرصيد مستخدم آخر نهائياً.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 space-y-1.5">
+                  <div className="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5 text-sm">
+                    <Sheet className="w-4 h-4" />
+                    <span>Google Drive و Excel</span>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    تخزين واستدعاء البيانات لحظي من شيتات Google Sheets على درايف كقاعدة بيانات مرنة ومباشرة دون الحاجة لأي قواعد بيانات معقدة.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl border border-rose-500/20 bg-rose-500/5 space-y-1.5">
+                  <div className="font-bold text-rose-700 dark:text-rose-300 flex items-center gap-1.5 text-sm">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>الإيقاف التلقائي الصارم</span>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    عند انتهاء الاشتراك، يتوقف فوراً: 1) تصدير وتعديل التقارير، 2) تحليل الرسائل بالذكاء الاصطناعي، 3) اتصال النظام ببيانات الإكسل.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Plans Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+              {/* Plan 1: Plus */}
+              <div className="rounded-3xl border-2 border-sky-500/40 bg-card p-8 shadow-lg flex flex-col justify-between space-y-6 relative overflow-hidden">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30 text-xs px-3 py-1 font-bold gap-1">
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>باقة بلس (Plus Plan)</span>
+                    </Badge>
+                    <span className="text-xs font-bold text-muted-foreground">للمحامي المستقل</span>
+                  </div>
+
                   <div>
-                    <h2 className="text-base font-bold text-sky-950 dark:text-sky-100">
-                      إعدادات وربط قاعدة بيانات المستخدمين (Supabase)
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                      ربط الحسابات السحابية لحفظ وإدارة حسابات المحامين والمشتركين وتخصيص بياناتهم
+                    <h3 className="text-2xl font-black text-foreground">باقة المحامي بلس ⚡</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      الخيار الأساسي المتكامل لإدارة الجلسات والدعاوى الفردية بكفاءة عالية.
                     </p>
+                  </div>
+
+                  {/* Pricing Cycles */}
+                  <div className="p-4 rounded-2xl bg-muted/30 border border-border space-y-2">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs font-bold text-muted-foreground">الاشتراك السنوي:</span>
+                      <span className="text-lg font-black text-foreground">فوترة سنوية <span className="text-xs font-normal text-emerald-600 dark:text-emerald-400 font-bold">(وفر شهرين)</span></span>
+                    </div>
+                    <div className="flex items-baseline justify-between pt-1 border-t border-border/50">
+                      <span className="text-xs font-bold text-muted-foreground">الاشتراك الشهري:</span>
+                      <span className="text-sm font-bold text-foreground">فوترة شهرية متجددة</span>
+                    </div>
+                  </div>
+
+                  {/* Features List */}
+                  <div className="space-y-2.5 pt-2">
+                    <span className="text-xs font-extrabold text-foreground uppercase tracking-wider">
+                      المزايا والخصائص المشمولة:
+                    </span>
+                    <ul className="space-y-2 text-xs text-muted-foreground">
+                      <li className="flex items-start gap-2 text-foreground font-medium">
+                        <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <span><strong>50 تحليل ذكي للرسائل (SMS) شهرياً</strong> عبر الذكاء الاصطناعي المركزي للمشرف.</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-foreground font-medium">
+                        <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <span><strong>ربط مباشر بـ Google Sheets / Drive</strong> لتخزين واستدعاء الجلسات فورياً.</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-foreground font-medium">
+                        <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <span><strong>إنشاء وتحميل تقارير الجلسات (PDF / Excel)</strong> للطباعة والمشاركة مع الموكلين.</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-foreground font-medium">
+                        <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <span><strong>متابعة الجلسات والتوكيلات والمهام والأحكام</strong> بدقة وتنظيم.</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-foreground font-medium">
+                        <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <span><strong>تنبيهات استباقية</strong> قبل موعد الجلسة وقبل انتهاء فترة الاشتراك.</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-foreground font-medium">
+                        <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <span><strong>حصة معزولة ومستقلة تماماً</strong> تضمن عدم التداخل مع أي مستخدم آخر.</span>
+                      </li>
+                    </ul>
                   </div>
                 </div>
 
                 <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopySql}
-                  className="gap-2 text-xs border-sky-500/40 text-sky-700 dark:text-sky-300 hover:bg-sky-500/10 self-start sm:self-auto"
+                  onClick={() => {
+                    setNewUser({ ...newUser, plan_tier: 'plus', ai_quota_limit: 50, billing_cycle: 'annual' });
+                    setIsAddOpen(true);
+                  }}
+                  className="w-full h-11 text-sm font-bold bg-sky-600 hover:bg-sky-700 text-white gap-2 shadow-md"
                 >
-                  {copiedSql ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copiedSql ? 'تم نسخ سكربت SQL' : 'نسخ سكربت الجدول (SQL)'}
+                  <UserPlus className="w-4 h-4" />
+                  <span>تسجيل مشترك جديد بباقة Plus</span>
                 </Button>
               </div>
 
-              <form onSubmit={handleSaveSupabaseSettings} className="p-6 space-y-5">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    رابط مشروع Supabase (Project URL)
-                  </Label>
-                  <Input
-                    placeholder="https://xyzprojectid.supabase.co"
-                    value={supabaseUrl}
-                    onChange={(e) => setSupabaseUrl(e.target.value)}
-                    className="font-mono text-sm h-10"
-                    dir="ltr"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    الرابط الخاص بمشروع Supabase من لوحة التحكم: Settings ← API.
-                  </p>
+              {/* Plan 2: Pro */}
+              <div className="rounded-3xl border-2 border-amber-500 bg-card p-8 shadow-xl flex flex-col justify-between space-y-6 relative overflow-hidden ring-2 ring-amber-500/20">
+                <div className="absolute top-0 end-0 bg-gradient-to-l from-amber-500 to-amber-600 text-white text-[10px] font-black px-4 py-1 rounded-bl-xl shadow-xs">
+                  الخيار الأكثر تميزاً للمكاتب ⭐
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                    مفتاح الخدمة السحابية (Supabase Service Role Key / Secret)
-                    {supabaseKeyIsSet && (
-                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold normal-case tracking-normal text-xs bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                        ✔ محدَّد
-                      </span>
-                    )}
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      type={showSupabaseKey ? 'text' : 'password'}
-                      placeholder={
-                        supabaseKeyIsSet
-                          ? `القيمة الحالية: ${maskedSupabaseKey} — اتركه فارغاً للإبقاء عليها`
-                          : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
-                      }
-                      value={supabaseKey}
-                      onChange={(e) => setSupabaseKey(e.target.value)}
-                      className="font-mono text-sm h-10 pe-10"
-                      dir="ltr"
-                      autoComplete="off"
-                    />
-                    <button
-                      type="button"
-                      className="absolute inset-y-0 end-0 px-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => setShowSupabaseKey((v) => !v)}
-                      tabIndex={-1}
-                    >
-                      {showSupabaseKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Badge className="bg-amber-500/20 text-amber-800 dark:text-amber-200 border-amber-500/40 text-xs px-3 py-1 font-bold gap-1">
+                      <Crown className="w-3.5 h-3.5 text-amber-500" />
+                      <span>باقة برو (Pro Plan)</span>
+                    </Badge>
+                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400">للمكاتب والشركات</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    مفتاح Service Role Key لإدارة المستخدمين والتسجيل الآمن (Project Settings ← API).
-                  </p>
-                </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    اسم جدول المستخدمين (Table Name)
-                  </Label>
-                  <Input
-                    placeholder="app_users"
-                    value={supabaseTableName}
-                    onChange={(e) => setSupabaseTableName(e.target.value)}
-                    className="font-mono text-sm h-10"
-                    dir="ltr"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    الاسم الافتراضي: <code>app_users</code>
-                  </p>
-                </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-foreground">باقة المكتب برو 👑</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      الحل الشامل والمتقدم لمكاتب المحاماة التي تتطلب استهلاكاً مضاعفاً وتخصيصاً كاملاً.
+                    </p>
+                  </div>
 
-                {/* SQL Script Box */}
-                <div className="space-y-2 pt-2">
-                  <Label className="text-xs font-bold flex items-center justify-between text-muted-foreground">
-                    <span>سكربت إنشاء وتحديث الجدول في Supabase (SQL Script):</span>
-                    <span className="text-[11px] font-normal text-muted-foreground">
-                      انسخ والصق في SQL Editor داخل Supabase
+                  {/* Pricing Cycles */}
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs font-bold text-amber-900 dark:text-amber-300">الاشتراك السنوي:</span>
+                      <span className="text-lg font-black text-amber-950 dark:text-amber-100">فوترة سنوية <span className="text-xs font-normal text-emerald-600 dark:text-emerald-400 font-bold">(أفضل قيمة + دعم VIP)</span></span>
+                    </div>
+                    <div className="flex items-baseline justify-between pt-1 border-t border-amber-500/20">
+                      <span className="text-xs font-bold text-amber-900 dark:text-amber-300">الاشتراك الشهري:</span>
+                      <span className="text-sm font-bold text-amber-950 dark:text-amber-100">فوترة شهرية مرنة</span>
+                    </div>
+                  </div>
+
+                  {/* Features List */}
+                  <div className="space-y-2.5 pt-2">
+                    <span className="text-xs font-extrabold text-foreground uppercase tracking-wider">
+                      كافة مزايا باقة Plus بالإضافة إلى:
                     </span>
-                  </Label>
-                  <div className="rounded-xl border border-border bg-muted/40 p-4 font-mono text-xs overflow-x-auto relative">
-                    <pre className="text-slate-800 dark:text-slate-200" dir="ltr">
-                      {SUPABASE_SQL_SCRIPT}
-                    </pre>
+                    <ul className="space-y-2 text-xs text-muted-foreground">
+                      <li className="flex items-start gap-2 text-foreground font-medium">
+                        <Check className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                        <span><strong>300 تحليل ذكي للرسائل (SMS) شهرياً</strong> (حصة ضخمة ومضاعفة 6 مرات).</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-foreground font-medium">
+                        <Check className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                        <span><strong>إمكانية تخصيص Google Sheet و Service Account منفصل</strong> خاص بمكتب المحامي.</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-foreground font-medium">
+                        <Check className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                        <span><strong>إمكانية تصفير أو شحن رصيد الذكاء الاصطناعي</strong> في أي وقت بضغطة زر من المشرف.</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-foreground font-medium">
+                        <Check className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                        <span><strong>إدارة متقدمة للأحكام القضائية والمطالبات المالية</strong> والتنفيذ.</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-foreground font-medium">
+                        <Check className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                        <span><strong>رسالة تسليم اشتراك احترافية مخصصة</strong> جاهزة للإرسال للمحامي عبر واتساب.</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-foreground font-medium">
+                        <Check className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                        <span><strong>أولوية قصوى ودعم فني متواصل</strong> مع تحديثات وميزات حصرية.</span>
+                      </li>
+                    </ul>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-                  <Button
-                    type="submit"
-                    disabled={savingSupabase}
-                    className="gap-2 px-6 h-10 text-sm font-bold text-white bg-sky-600 hover:bg-sky-700 shadow-md"
-                  >
-                    <Save className="w-4 h-4" />
-                    {savingSupabase ? 'جارٍ الحفظ والتحقق...' : 'حفظ إعدادات Supabase'}
-                  </Button>
-                </div>
-              </form>
+                <Button
+                  onClick={() => {
+                    setNewUser({ ...newUser, plan_tier: 'pro', ai_quota_limit: 300, billing_cycle: 'annual' });
+                    setIsAddOpen(true);
+                  }}
+                  className="w-full h-11 text-sm font-bold text-white gap-2 shadow-lg"
+                  style={{ background: 'linear-gradient(135deg, #B88A3B 0%, #8c6422 100%)' }}
+                >
+                  <Crown className="w-4 h-4" />
+                  <span>تسجيل مشترك جديد بباقة Pro 👑</span>
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -1436,20 +1677,113 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
                 </div>
               </div>
 
-              {/* Subscription Duration Settings (For Lawyers) */}
+              {/* Subscription Duration & Plan Settings (For Lawyers) */}
               {newUser.role === 'staff' && (
-                <div className="space-y-3 p-4 rounded-xl border border-amber-500/35 bg-amber-500/5">
+                <div className="space-y-4 p-4 rounded-xl border border-amber-500/35 bg-amber-500/5">
                   <div className="flex items-center justify-between text-amber-700 dark:text-amber-300 font-bold text-xs">
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      <span>مدة اشتراك المحامي وفترة الصلاحية</span>
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <span>باقة الاشتراك والذكاء الاصطناعي للمحامي</span>
                     </div>
                     <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
                       تنبيه آلي قبل 3 أيام ⚠️
                     </Badge>
                   </div>
 
+                  {/* Plan Tier Choice */}
                   <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">باقة الاشتراك (Plan Tier):</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setNewUser({ ...newUser, plan_tier: 'plus', ai_quota_limit: 50 })}
+                        className={`p-2.5 rounded-xl border text-start space-y-1 transition-all ${
+                          newUser.plan_tier === 'plus'
+                            ? 'border-sky-500 bg-sky-500/15 text-sky-950 dark:text-sky-100 ring-1 ring-sky-500/40 shadow-xs'
+                            : 'border-border text-muted-foreground hover:bg-muted/40'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-sky-600 dark:text-sky-400">
+                          <Zap className="w-3.5 h-3.5" />
+                          <span>باقة بلس (Plus)</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">50 تحليل رسائل/شهر</p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setNewUser({ ...newUser, plan_tier: 'pro', ai_quota_limit: 300 })}
+                        className={`p-2.5 rounded-xl border text-start space-y-1 transition-all ${
+                          newUser.plan_tier === 'pro'
+                            ? 'border-amber-500 bg-amber-500/20 text-amber-950 dark:text-amber-100 ring-1 ring-amber-500/40 shadow-xs'
+                            : 'border-border text-muted-foreground hover:bg-muted/40'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+                          <Crown className="w-3.5 h-3.5" />
+                          <span>باقة برو (Pro) 👑</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">300 تحليل رسائل/شهر</p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Billing Cycle Choice */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">دورة الفوترة (Billing Cycle):</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewUser({ ...newUser, billing_cycle: 'annual', subscription_end_date: computeEndDate('1y') });
+                          setNewSubscriptionDuration('1y');
+                        }}
+                        className={`p-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                          newUser.billing_cycle === 'annual'
+                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold shadow-xs'
+                            : 'border-border text-muted-foreground hover:bg-muted/40'
+                        }`}
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>اشتراك سنوي (365 يوماً)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewUser({ ...newUser, billing_cycle: 'monthly', subscription_end_date: computeEndDate('1m') });
+                          setNewSubscriptionDuration('1m');
+                        }}
+                        className={`p-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                          newUser.billing_cycle === 'monthly'
+                            ? 'border-sky-500 bg-sky-500/15 text-sky-700 dark:text-sky-300 font-extrabold shadow-xs'
+                            : 'border-border text-muted-foreground hover:bg-muted/40'
+                        }`}
+                      >
+                        <Clock className="w-3.5 h-3.5 text-sky-500" />
+                        <span>اشتراك شهري (30 يوماً)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* AI Quota Limit */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold flex items-center justify-between">
+                      <span>رصيد الذكاء الاصطناعي الشهري (حصة معزولة للمحامي):</span>
+                      <span className="text-[10px] font-mono text-muted-foreground">رسائل SMS شهرياً</span>
+                    </Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={9999}
+                      value={newUser.ai_quota_limit}
+                      onChange={(e) => setNewUser({ ...newUser, ai_quota_limit: parseInt(e.target.value) || 50 })}
+                      className="font-mono text-sm"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 pt-1">
                     <Label className="text-xs font-semibold">مدة الاشتراك الممنوحة:</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {[
@@ -1726,11 +2060,128 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
 
               {/* Subscription Status & Expiration for Staff */}
               {editUserData.role === 'staff' && (
-                <div className="space-y-3 p-4 rounded-xl border border-amber-500/35 bg-amber-500/5">
+                <div className="space-y-4 p-4 rounded-xl border border-amber-500/35 bg-amber-500/5">
                   <div className="flex items-center justify-between text-amber-700 dark:text-amber-300 font-bold text-xs">
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      <span>إدارة حالة الاشتراك وتاريخ الانتهاء</span>
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <span>إدارة باقة الاشتراك والذكاء الاصطناعي</span>
+                    </div>
+                  </div>
+
+                  {/* Plan Tier Choice */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">باقة الاشتراك (Plan Tier):</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditUserData({ ...editUserData, plan_tier: 'plus', ai_quota_limit: 50 })}
+                        className={`p-2.5 rounded-xl border text-start space-y-1 transition-all ${
+                          editUserData.plan_tier === 'plus'
+                            ? 'border-sky-500 bg-sky-500/15 text-sky-950 dark:text-sky-100 ring-1 ring-sky-500/40 shadow-xs'
+                            : 'border-border text-muted-foreground hover:bg-muted/40'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-sky-600 dark:text-sky-400">
+                          <Zap className="w-3.5 h-3.5" />
+                          <span>باقة بلس (Plus)</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">50 تحليل رسائل/شهر</p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setEditUserData({ ...editUserData, plan_tier: 'pro', ai_quota_limit: 300 })}
+                        className={`p-2.5 rounded-xl border text-start space-y-1 transition-all ${
+                          editUserData.plan_tier === 'pro'
+                            ? 'border-amber-500 bg-amber-500/20 text-amber-950 dark:text-amber-100 ring-1 ring-amber-500/40 shadow-xs'
+                            : 'border-border text-muted-foreground hover:bg-muted/40'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+                          <Crown className="w-3.5 h-3.5" />
+                          <span>باقة برو (Pro) 👑</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">300 تحليل رسائل/شهر</p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Billing Cycle Choice */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">دورة الفوترة (Billing Cycle):</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditUserData({ ...editUserData, billing_cycle: 'annual' })}
+                        className={`p-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                          editUserData.billing_cycle === 'annual'
+                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-extrabold shadow-xs'
+                            : 'border-border text-muted-foreground hover:bg-muted/40'
+                        }`}
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>اشتراك سنوي (365 يوماً)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setEditUserData({ ...editUserData, billing_cycle: 'monthly' })}
+                        className={`p-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                          editUserData.billing_cycle === 'monthly'
+                            ? 'border-sky-500 bg-sky-500/15 text-sky-700 dark:text-sky-300 font-extrabold shadow-xs'
+                            : 'border-border text-muted-foreground hover:bg-muted/40'
+                        }`}
+                      >
+                        <Clock className="w-3.5 h-3.5 text-sky-500" />
+                        <span>اشتراك شهري (30 يوماً)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* AI Quota and Current Usage with Reset */}
+                  <div className="space-y-2 p-3 rounded-lg bg-card border border-border">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold">حصة ورصيد استهلاك الذكاء الاصطناعي:</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          if (selectedUser) {
+                            await handleResetAiUsage(selectedUser.id, selectedUser.username);
+                            setEditUserData((prev) => ({ ...prev, ai_usage_count: 0 }));
+                          }
+                        }}
+                        className="h-6 px-2 text-[10px] gap-1 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/10"
+                      >
+                        <RotateCcw className="w-3 h-3 text-emerald-600" />
+                        <span>تصفير الاستهلاك الآن</span>
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <span className="text-[11px] text-muted-foreground">الحد الشهري (Quota Limit):</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={9999}
+                          value={editUserData.ai_quota_limit}
+                          onChange={(e) => setEditUserData({ ...editUserData, ai_quota_limit: parseInt(e.target.value) || 50 })}
+                          className="font-mono text-sm h-8"
+                          dir="ltr"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[11px] text-muted-foreground">المستهلك حالياً (Usage):</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={editUserData.ai_usage_count}
+                          onChange={(e) => setEditUserData({ ...editUserData, ai_usage_count: parseInt(e.target.value) || 0 })}
+                          className="font-mono text-sm h-8"
+                          dir="ltr"
+                        />
+                      </div>
                     </div>
                   </div>
 

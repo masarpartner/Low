@@ -18,11 +18,14 @@ import {
 } from "../services/session.service";
 import { isGoogleSheetsConfigured } from "../config/env";
 import { logger } from "../lib/logger";
-import { attachAuthUser, requireAuth } from "../middlewares/auth.middleware";
+import { attachAuthUser, requireAuth, requireActiveSubscription } from "../middlewares/auth.middleware";
 import { WhatsappReminderChannel } from "../services/reminder/channels/whatsappChannel";
 import { computeHearingDateTime } from "../utils/hijri";
 
 const router: IRouter = Router();
+
+// Stop all Excel Sheet read/write operations if the user's subscription is suspended or expired
+router.use(attachAuthUser, requireAuth, requireActiveSubscription);
 
 function unconfiguredResponse(): { error: string } {
   return {
@@ -31,7 +34,7 @@ function unconfiguredResponse(): { error: string } {
   };
 }
 
-router.get("/sessions", attachAuthUser, requireAuth, async (req, res) => {
+router.get("/sessions", async (req, res) => {
   const parseResult = ListSessionsQueryParams.safeParse(req.query);
   if (!parseResult.success) {
     res.status(400).json({ error: "Invalid status filter." });

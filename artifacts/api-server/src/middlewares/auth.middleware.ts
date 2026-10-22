@@ -139,3 +139,61 @@ export function requireAdmin(
   }
   next();
 }
+
+/**
+ * Rejects requests with 403 if the user's subscription is suspended or expired.
+ * Stops access to:
+ * - Excel data read/write (sessions, tasks, poa, judgments)
+ * - Report generation and saving
+ * - AI message extraction
+ */
+export function requireActiveSubscription(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  if (!req.authUser) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  // Admins always have access
+  if (req.authUser.role === "admin") {
+    return next();
+  }
+
+  try {
+    const { loadLocalUsers } = require("../services/supabase.service");
+    const users = loadLocalUsers();
+    const current = users.find(
+      (u: any) => u.id === req.authUser?.userId || u.username === req.authUser?.username,
+    );
+
+    if (current) {
+      if (current.status === "suspended") {
+        res.status(403).json({
+          error: "تم إيقاف اشتراك هذا الحساب مؤقتاً من قِبل إدارة المنظومة. تم إيقاف المزامنة مع الإكسل والتقارير والذكاء الاصطناعي.",
+          isSuspended: true,
+        });
+        return;
+      }
+
+      if (current.subscription_end_date) {
+        const expiry = new Date(current.subscription_end_date).getTime();
+        if (expiry < Date.now()) {
+          res.status(403).json({
+            error: "عذراً، انتهت فترة اشتراكك في المنظومة. تم إيقاف اتصال النظام بالإكسل وتوليد التقارير وتحليل الرسائل بالذكاء الاصطناعي. يرجى التواصل مع المشرف العام لتجديد الاشتراك.",
+            isExpired: true,
+            subscription_end_date: current.subscription_end_date,
+          });
+          return;
+        }
+      }
+    }
+  } catch (err) {
+    // If lookup fails, allow next
+  }
+
+  next();
+}
+

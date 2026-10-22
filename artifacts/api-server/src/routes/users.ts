@@ -6,6 +6,7 @@ import {
   deleteSupabaseUser,
   updateSupabaseUser,
   toggleUserStatus,
+  resetUserAiUsage,
 } from "../services/supabase.service";
 import { isSupabaseConfigured } from "../config/env";
 import { logger } from "../lib/logger";
@@ -52,6 +53,9 @@ router.post("/users", requireAdmin, async (req, res) => {
       status,
       subscription_end_date,
       subscription_notes,
+      plan_tier,
+      billing_cycle,
+      ai_quota_limit,
       google_service_account_json,
       google_spreadsheet_id,
       google_sheet_name,
@@ -71,6 +75,9 @@ router.post("/users", requireAdmin, async (req, res) => {
       status: status || "active",
       subscription_end_date: subscription_end_date || null,
       subscription_notes: subscription_notes || null,
+      plan_tier: plan_tier || (role === "admin" ? "pro" : "plus"),
+      billing_cycle: billing_cycle || "annual",
+      ai_quota_limit: ai_quota_limit !== undefined ? Number(ai_quota_limit) : undefined,
       google_service_account_json,
       google_spreadsheet_id,
       google_sheet_name,
@@ -98,6 +105,10 @@ router.patch("/users/:id", requireAdmin, async (req, res) => {
       status,
       subscription_end_date,
       subscription_notes,
+      plan_tier,
+      billing_cycle,
+      ai_quota_limit,
+      ai_usage_count,
       google_service_account_json,
       google_spreadsheet_id,
       google_sheet_name,
@@ -111,6 +122,10 @@ router.patch("/users/:id", requireAdmin, async (req, res) => {
       status,
       subscription_end_date,
       subscription_notes,
+      plan_tier,
+      billing_cycle,
+      ai_quota_limit: ai_quota_limit !== undefined ? Number(ai_quota_limit) : undefined,
+      ai_usage_count: ai_usage_count !== undefined ? Number(ai_usage_count) : undefined,
       google_service_account_json,
       google_spreadsheet_id,
       google_sheet_name,
@@ -120,6 +135,21 @@ router.patch("/users/:id", requireAdmin, async (req, res) => {
   } catch (err: any) {
     logger.error({ err, id: req.params.id }, "Failed to update user");
     res.status(400).json({ error: err.message || "فشل تعديل المستخدم." });
+  }
+});
+
+/**
+ * POST /api/users/:id/reset-ai-usage
+ * Resets user's AI quota usage counter to 0 (Admin only)
+ */
+router.post("/users/:id/reset-ai-usage", requireAdmin, async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const updated = await resetUserAiUsage(id);
+    res.json(updated);
+  } catch (err: any) {
+    logger.error({ err, id: req.params.id }, "Failed to reset AI usage");
+    res.status(400).json({ error: err.message || "فشل تصفير استهلاك الذكاء الاصطناعي." });
   }
 });
 

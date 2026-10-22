@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { useAnalyzeMessage, useCreateSession, getListSessionsQueryKey, getGetDashboardStatsQueryKey } from '@workspace/api-client-react';
+import { useAnalyzeMessage, useCreateSession, useGetCurrentUser, getListSessionsQueryKey, getGetDashboardStatsQueryKey } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Save, RotateCcw, CheckCircle2, ArrowLeft, Bot } from 'lucide-react';
+import { Sparkles, Save, RotateCcw, CheckCircle2, ArrowLeft, Bot, AlertTriangle, AlertCircle, ShieldCheck, Database } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 
@@ -17,10 +18,31 @@ export default function ChatPage() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
+  const { data: currentUser, refetch: refetchUser } = useGetCurrentUser();
+  const user = currentUser as any;
+  const isExpired = Boolean(user?.isExpired || user?.isSuspended);
+  const isQuotaExceeded = user?.role !== 'admin' && user?.ai_quota_limit !== -1 && (user?.ai_usage_count || 0) >= (user?.ai_quota_limit || 50);
+
   const analyzeMutation = useAnalyzeMessage();
   const createMutation = useCreateSession();
 
   const handleAnalyze = () => {
+    if (isExpired) {
+      toast({
+        title: 'الاشتراك غير سارٍ',
+        description: 'انتهت صلاحية اشتراكك. يرجى التواصل مع المشرف العام لتجديد الاشتراك واستئناف التحليل.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (isQuotaExceeded) {
+      toast({
+        title: 'تم استهلاك رصيد الذكاء الاصطناعي',
+        description: 'وصلت إلى الحد الأقصى لتحليلات الرسائل لباقة اشتراكك لهذا الشهر. يرجى مراجعة الإدارة للترقية أو إعادة الشحن.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!message.trim()) {
       toast({
         title: 'تنبيه',
@@ -47,6 +69,7 @@ export default function ChatPage() {
             sessionTime: data.session_time || '',
             notes: data.notes || '',
           });
+          refetchUser();
           toast({
             title: 'تم التحليل بنجاح',
             description: 'تم استخراج البيانات. راجعها وعدّلها قبل الحفظ.',
@@ -72,7 +95,7 @@ export default function ChatPage() {
           queryClient.invalidateQueries({ queryKey: getGetDashboardStatsQueryKey() });
           toast({
             title: 'تم الحفظ',
-            description: 'تم حفظ جلسة المحكمة بنجاح',
+            description: 'تم حفظ جلسة المحكمة بنجاح في Google Drive Sheets',
           });
           setMessage('');
           setExtractedData(null);
@@ -115,15 +138,64 @@ export default function ChatPage() {
   return (
     <div className="p-6 lg:p-8 space-y-6">
       {/* Header */}
-      <div className="fade-in-up">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-1 h-6 rounded-full bg-primary" />
-          <h1 className="text-2xl font-bold tracking-tight">تحليل رسالة المحكمة</h1>
+      <div className="fade-in-up flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-1 h-6 rounded-full bg-primary" />
+            <h1 className="text-2xl font-bold tracking-tight">تحليل رسالة المحكمة بالذكاء الاصطناعي</h1>
+          </div>
+          <p className="text-muted-foreground text-sm mr-3">
+            الصق نص إشعار الجلسة ليتم تحليلها فوراً واستخراج الأطراف والمحكمة والمواعيد
+          </p>
         </div>
-        <p className="text-muted-foreground text-sm mr-3">
-          الصق نص رسالة الجلسة لاستخراج البيانات تلقائياً بالذكاء الاصطناعي
-        </p>
+
+        {/* User AI Quota Card */}
+        {user && (
+          <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card/60 shadow-xs">
+            <div className="w-9 h-9 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div className="text-xs space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-foreground">
+                  {user.plan_tier === 'pro' ? 'باقة برو (Pro)' : 'باقة بلس (Plus)'}
+                </span>
+                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/30">
+                  {user.billing_cycle === 'monthly' ? 'شهري' : 'سنوي'}
+                </Badge>
+              </div>
+              <p className="text-muted-foreground text-[11px]">
+                رصيد التحليل: <strong className="font-mono text-foreground">{user.role === 'admin' ? 'مفتوح (مشرف)' : `${user.ai_usage_count || 0} / ${user.ai_quota_limit || 50}`}</strong>
+              </p>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Expiration or Quota Warnings */}
+      {isExpired && (
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 flex items-center gap-3 text-red-700 dark:text-red-300">
+          <AlertTriangle className="w-5 h-5 shrink-0 animate-pulse text-red-600" />
+          <div className="text-xs">
+            <p className="font-bold">تم إيقاف الخدمة: اشتراكك منتهٍ أو موقوف مؤقتاً</p>
+            <p className="text-muted-foreground mt-0.5">
+              تم إيقاف عمل تحليلات الذكاء الاصطناعي وحفظ التقارير والاتصال بجداول الإكسل. يرجى التواصل مع المشرف العام لتجديد الاشتراك.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!isExpired && isQuotaExceeded && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 flex items-center gap-3 text-amber-800 dark:text-amber-300">
+          <AlertCircle className="w-5 h-5 shrink-0 text-amber-600" />
+          <div className="text-xs">
+            <p className="font-bold">تم استهلاك رصيد تحليلات الذكاء الاصطناعي لهذا الشهر ({user?.ai_usage_count}/{user?.ai_quota_limit})</p>
+            <p className="text-muted-foreground mt-0.5">
+              كل مستخدم يمتلك رصيداً مستقلاً. يرجى التواصل مع المشرف العام لتصفير الرصيد أو الترقية لباقة برو (Pro).
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Message Input Card */}
       <div className="fade-in-up fade-in-up-delay-1 rounded-xl border border-border bg-card overflow-hidden">
@@ -133,8 +205,8 @@ export default function ChatPage() {
             <Bot className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-semibold">نص الرسالة</p>
-            <p className="text-xs text-muted-foreground">الصق نص إشعار الجلسة الواردة من المحكمة</p>
+            <p className="text-sm font-semibold">نص الرسالة القضائية</p>
+            <p className="text-xs text-muted-foreground">يعمل التحليل عبر حساب الذكاء الاصطناعي المركزي للمدير مع عزل رصيدك</p>
           </div>
         </div>
 
@@ -144,7 +216,7 @@ export default function ChatPage() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={6}
-            disabled={analyzeMutation.isPending}
+            disabled={analyzeMutation.isPending || isExpired || isQuotaExceeded}
             className="text-base resize-none leading-relaxed border-border/50 focus:border-primary/50 bg-background/50"
             dir="auto"
             data-testid="textarea-message"
@@ -152,8 +224,8 @@ export default function ChatPage() {
           <div className="flex gap-2">
             <Button
               onClick={handleAnalyze}
-              disabled={analyzeMutation.isPending || !message.trim()}
-              className="gap-2 shadow-sm"
+              disabled={analyzeMutation.isPending || !message.trim() || isExpired || isQuotaExceeded}
+              className="gap-2 shadow-sm font-bold"
               data-testid="button-analyze"
             >
               <Sparkles className="w-4 h-4" />

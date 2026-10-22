@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { attachAuthUser, requireAuth } from "../middlewares/auth.middleware";
+import { attachAuthUser, requireAuth, requireActiveSubscription } from "../middlewares/auth.middleware";
 import { logger } from "../lib/logger";
 import {
   ensureTaskSheetReady,
@@ -12,6 +12,9 @@ import {
 import { WhatsappReminderChannel } from "../services/reminder/channels/whatsappChannel";
 
 const router: IRouter = Router();
+
+// Stop all Tasks Excel Sheet read/write operations if subscription is suspended or expired
+router.use(attachAuthUser, requireAuth, requireActiveSubscription);
 
 export interface TaskRecord {
   id: number;

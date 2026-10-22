@@ -205,17 +205,33 @@ router.get("/auth/me", attachAuthUser, requireAuth, async (req, res) => {
     let subscriptionWarning: string | null = null;
     let daysRemaining: number | null = null;
     let status: "active" | "suspended" = "active";
+    let plan_tier: "plus" | "pro" = "plus";
+    let billing_cycle: "monthly" | "annual" = "annual";
+    let ai_quota_limit: number = 50;
+    let ai_usage_count: number = 0;
+    let isExpired = false;
+    let isSuspended = false;
 
     try {
       const users = await listSupabaseUsers();
       const user = users.find((u) => u.id === authUser.userId || u.username === authUser.username);
       if (user) {
         status = user.status || "active";
+        isSuspended = status === "suspended";
+        plan_tier = user.plan_tier || (user.role === "admin" ? "pro" : "plus");
+        billing_cycle = user.billing_cycle || "annual";
+        ai_quota_limit = user.ai_quota_limit !== undefined
+          ? user.ai_quota_limit
+          : (user.role === "admin" ? -1 : (plan_tier === "pro" ? 300 : 50));
+        ai_usage_count = user.ai_usage_count || 0;
         subscription_end_date = user.subscription_end_date || null;
+
         if (subscription_end_date) {
           const diffMs = new Date(subscription_end_date).getTime() - Date.now();
           daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-          if (daysRemaining <= 3 && daysRemaining >= 0) {
+          if (daysRemaining < 0) {
+            isExpired = true;
+          } else if (daysRemaining <= 3) {
             subscriptionWarning = `تنبيه: ينتهي اشتراكك خلال ${daysRemaining === 0 ? "اليوم" : `${daysRemaining} ${daysRemaining === 1 ? "يوم" : daysRemaining === 2 ? "يومين" : "أيام"}`}. يرجى التواصل مع الإدارة للتجديد.`;
           }
         }
@@ -227,9 +243,15 @@ router.get("/auth/me", attachAuthUser, requireAuth, async (req, res) => {
       role: authUser.role || "staff",
       displayName: authUser.displayName || authUser.username,
       status,
+      isSuspended,
+      isExpired,
       subscription_end_date,
       subscriptionWarning,
       daysRemaining,
+      plan_tier,
+      billing_cycle,
+      ai_quota_limit,
+      ai_usage_count,
       isSupabase: isSupabaseConfigured(),
     });
   } catch (err) {

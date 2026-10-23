@@ -124,38 +124,46 @@ export default function AdminLoginPage() {
           {/* Form */}
           <form onSubmit={handleAdminLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-amber-100/80">
+              <Label htmlFor="admin_username" className="text-xs font-semibold text-amber-100/80">
                 اسم المشرف (Admin Username)
               </Label>
               <div className="relative">
                 <User className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-300/50" />
                 <Input
+                  id="admin_username"
                   type="text"
                   required
-                  placeholder="123456"
+                  placeholder="اسم المشرف المعتمد"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('يرجى إدخال اسم المشرف.')}
+                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                   className="pr-10 h-11 text-white placeholder:text-amber-200/30 font-mono text-sm rounded-xl border-amber-500/20 focus:border-[#B88A3B] focus:ring-1 focus:ring-[#B88A3B]"
                   style={{ background: 'rgba(0, 0, 0, 0.35)' }}
+                  autoComplete="username"
                   autoFocus
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-amber-100/80">
+              <Label htmlFor="admin_password" className="text-xs font-semibold text-amber-100/80">
                 كلمة المرور (Master Password)
               </Label>
               <div className="relative">
                 <Lock className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-300/50" />
                 <Input
+                  id="admin_password"
                   type="password"
                   required
-                  placeholder="••••••"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('يرجى إدخال كلمة المرور.')}
+                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                   className="pr-10 h-11 text-white placeholder:text-amber-200/30 font-mono text-sm rounded-xl border-amber-500/20 focus:border-[#B88A3B] focus:ring-1 focus:ring-[#B88A3B]"
                   style={{ background: 'rgba(0, 0, 0, 0.35)' }}
+                  autoComplete="current-password"
                 />
               </div>
             </div>
@@ -173,19 +181,6 @@ export default function AdminLoginPage() {
               {loading ? 'جارٍ التحقق من المشرف...' : 'دخول المشرف العام'}
             </Button>
           </form>
-
-          {/* Quick Access Info */}
-          <div
-            className="mt-6 p-3 rounded-xl text-center text-xs flex items-center justify-center gap-2"
-            style={{
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              color: 'rgba(255, 255, 255, 0.6)',
-            }}
-          >
-            <span>بيانات الدخول الافتراضية للمشرف:</span>
-            <span className="font-mono text-amber-300 font-bold px-1.5 py-0.5 rounded bg-white/5">123456</span>
-          </div>
         </div>
 
         <p className="text-center text-xs text-white/40 mt-4">

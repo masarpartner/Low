@@ -630,22 +630,70 @@ export async function createSupabaseUser(input: {
 }
 
 /**
+ * Counts active admin users across Supabase or local store.
+ */
+export async function countActiveAdmins(excludeUserId?: string): Promise<number> {
+  const client = getSupabaseClient();
+  if (!client) {
+    const local = loadLocalUsers();
+    return local.filter((u) => u.role === "admin" && u.status === "active" && u.id !== excludeUserId).length;
+  }
+  try {
+    const tableName = env.supabaseTableName;
+    let query = client
+      .from(tableName)
+      .select("id", { count: "exact", head: true })
+      .eq("role", "admin")
+      .eq("status", "active");
+    if (excludeUserId) {
+      query = query.neq("id", excludeUserId);
+    }
+    const { count, error } = await query;
+    if (error || count === null) {
+      const local = loadLocalUsers();
+      return local.filter((u) => u.role === "admin" && u.status === "active" && u.id !== excludeUserId).length;
+    }
+    return count;
+  } catch {
+    const local = loadLocalUsers();
+    return local.filter((u) => u.role === "admin" && u.status === "active" && u.id !== excludeUserId).length;
+  }
+}
+
+/**
  * Delete a user from Supabase or local store.
  */
 export async function deleteSupabaseUser(id: string): Promise<void> {
   const client = getSupabaseClient();
   if (!client) {
     const local = loadLocalUsers();
-    const filtered = local.filter((u) => u.id !== id);
-    if (filtered.length === local.length) {
+    const userToDelete = local.find((u) => u.id === id);
+    if (!userToDelete) {
       throw new Error("المستخدم غير موجود.");
     }
+    if (userToDelete.role === "admin" && userToDelete.status === "active") {
+      const otherAdmins = await countActiveAdmins(id);
+      if (otherAdmins === 0) {
+        throw new Error("لا يمكن حذف المشرف الوحيد النشط في المنظومة لضمان استمرارية لوحة التحكم.");
+      }
+    }
+    const filtered = local.filter((u) => u.id !== id);
     saveLocalUsers(filtered);
     return;
   }
 
   invalidateUserGoogleCache(id);
   const tableName = env.supabaseTableName;
+
+  // Protect last admin from deletion
+  const { data: targetUser } = await client.from(tableName).select("role, status").eq("id", id).maybeSingle();
+  if (targetUser && targetUser.role === "admin" && targetUser.status === "active") {
+    const otherAdmins = await countActiveAdmins(id);
+    if (otherAdmins === 0) {
+      throw new Error("لا يمكن حذف المشرف الوحيد النشط في المنظومة لضمان استمرارية لوحة التحكم.");
+    }
+  }
+
   const { error } = await client.from(tableName).delete().eq("id", id);
 
   if (error) {
@@ -677,6 +725,32 @@ export async function updateSupabaseUser(
   },
 ): Promise<AppUser> {
   const client = getSupabaseClient();
+
+  // Guard against demoting or suspending the last active admin
+  if (input.role === "staff" || input.status === "suspended") {
+    let isCurrentlyActiveAdmin = false;
+    if (!client) {
+      const local = loadLocalUsers();
+      const user = local.find((u) => u.id === id);
+      isCurrentlyActiveAdmin = user?.role === "admin" && user?.status === "active";
+    } else {
+      const tableName = env.supabaseTableName;
+      const { data: user } = await client.from(tableName).select("role, status").eq("id", id).maybeSingle();
+      isCurrentlyActiveAdmin = user?.role === "admin" && user?.status === "active";
+    }
+
+    if (isCurrentlyActiveAdmin) {
+      const remainingAdmins = await countActiveAdmins(id);
+      if (remainingAdmins === 0) {
+        throw new Error(
+          input.role === "staff"
+            ? "لا يمكن تنزيل صلاحية المشرف الوحيد النشط إلى محامٍ. يجب تعيين مشرف آخر أولاً."
+            : "لا يمكن إيقاف المشرف الوحيد النشط في المنظومة. يجب أن يتوفر مشرف فعّال آخر أولاً."
+        );
+      }
+    }
+  }
+
   if (!client) {
     const local = loadLocalUsers();
     const index = local.findIndex((u) => u.id === id);

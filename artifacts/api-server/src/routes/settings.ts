@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { getSettings, saveSettings, type AppSettings } from "../config/settings-store";
-import { attachAuthUser, requireAuth } from "../middlewares/auth.middleware";
+import { attachAuthUser, requireAdmin } from "../middlewares/auth.middleware";
 import { logger } from "../lib/logger";
 import { WhatsappReminderChannel } from "../services/reminder/channels/whatsappChannel";
 
@@ -81,18 +81,18 @@ function buildSettingsResponse(s: AppSettings) {
 
 /**
  * GET /api/settings
- * Returns the current persisted settings.
+ * Returns the current persisted settings (Admin only).
  */
-router.get("/settings", attachAuthUser, requireAuth, (_req, res) => {
+router.get("/settings", attachAuthUser, requireAdmin, (_req, res) => {
   const s = getSettings();
   res.json(buildSettingsResponse(s));
 });
 
 /**
  * PUT /api/settings
- * Accepts a partial settings object and merges it with the persisted values.
+ * Accepts a partial settings object and merges it with the persisted values (Admin only).
  */
-router.put("/settings", attachAuthUser, requireAuth, (req, res) => {
+router.put("/settings", attachAuthUser, requireAdmin, (req, res) => {
   const parsed = parseBody(req.body);
   if (!parsed.ok) {
     res.status(400).json({ error: "Invalid settings payload." });
@@ -111,9 +111,9 @@ router.put("/settings", attachAuthUser, requireAuth, (req, res) => {
 
 /**
  * POST /api/settings/test-whatsapp
- * Dispatches a test WhatsApp session reminder to verify configuration.
+ * Dispatches a test WhatsApp session reminder to verify configuration (Admin only).
  */
-router.post("/settings/test-whatsapp", attachAuthUser, requireAuth, async (_req, res) => {
+router.post("/settings/test-whatsapp", attachAuthUser, requireAdmin, async (_req, res) => {
   const s = getSettings();
   if (!s.whatsappNumber?.trim()) {
     res.status(400).json({ error: "يرجى كتابة رقم الواتساب وتحديد الإعدادات أولاً." });

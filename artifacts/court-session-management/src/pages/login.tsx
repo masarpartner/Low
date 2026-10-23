@@ -105,8 +105,10 @@ export default function LoginPage() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="12345"
+                  placeholder="اسم المستخدم أو رمز المحامي"
                   required
+                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('يرجى إدخال اسم المستخدم أو رمز المحامي.')}
+                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                   disabled={loginMutation.isPending}
                   autoComplete="username"
                   className="pr-10 h-11 text-white placeholder:text-emerald-300/30 font-medium rounded-xl border-emerald-500/20 focus:border-[#B88A3B] focus:ring-1 focus:ring-[#B88A3B]"
@@ -129,8 +131,10 @@ export default function LoginPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="•••••"
+                  placeholder="••••••••"
                   required
+                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('يرجى إدخال كلمة المرور.')}
+                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                   disabled={loginMutation.isPending}
                   autoComplete="current-password"
                   className="pr-10 h-11 text-white placeholder:text-emerald-300/30 font-medium rounded-xl border-emerald-500/20 focus:border-[#B88A3B] focus:ring-1 focus:ring-[#B88A3B]"
@@ -153,19 +157,6 @@ export default function LoginPage() {
               {loginMutation.isPending ? 'جارٍ تسجيل الدخول...' : 'تسجيل دخول المحامي'}
             </Button>
           </form>
-
-          {/* Quick Access Info */}
-          <div
-            className="mt-6 p-3 rounded-xl text-center text-xs flex items-center justify-center gap-2"
-            style={{
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              color: 'rgba(255, 255, 255, 0.6)',
-            }}
-          >
-            <span>بيانات الدخول الافتراضية:</span>
-            <span className="font-mono text-emerald-300 font-bold px-1.5 py-0.5 rounded bg-white/5">12345</span>
-          </div>
 
           {/* Admin Portal Gateway Link */}
           <div className="mt-5 pt-4 text-center border-t border-white/10">

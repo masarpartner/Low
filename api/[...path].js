@@ -52424,6 +52424,7 @@ var require_bcryptjs = __commonJS({
 // src/services/supabase.service.ts
 var supabase_service_exports = {};
 __export(supabase_service_exports, {
+  countActiveAdmins: () => countActiveAdmins,
   createSupabaseUser: () => createSupabaseUser,
   deleteSupabaseUser: () => deleteSupabaseUser,
   ensureDefaultAdmin: () => ensureDefaultAdmin,
@@ -52896,19 +52897,56 @@ async function createSupabaseUser(input) {
     created_at: data.created_at
   };
 }
+async function countActiveAdmins(excludeUserId) {
+  const client = getSupabaseClient();
+  if (!client) {
+    const local = loadLocalUsers();
+    return local.filter((u) => u.role === "admin" && u.status === "active" && u.id !== excludeUserId).length;
+  }
+  try {
+    const tableName = env.supabaseTableName;
+    let query = client.from(tableName).select("id", { count: "exact", head: true }).eq("role", "admin").eq("status", "active");
+    if (excludeUserId) {
+      query = query.neq("id", excludeUserId);
+    }
+    const { count, error } = await query;
+    if (error || count === null) {
+      const local = loadLocalUsers();
+      return local.filter((u) => u.role === "admin" && u.status === "active" && u.id !== excludeUserId).length;
+    }
+    return count;
+  } catch {
+    const local = loadLocalUsers();
+    return local.filter((u) => u.role === "admin" && u.status === "active" && u.id !== excludeUserId).length;
+  }
+}
 async function deleteSupabaseUser(id) {
   const client = getSupabaseClient();
   if (!client) {
     const local = loadLocalUsers();
-    const filtered = local.filter((u) => u.id !== id);
-    if (filtered.length === local.length) {
+    const userToDelete = local.find((u) => u.id === id);
+    if (!userToDelete) {
       throw new Error("\u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F.");
     }
+    if (userToDelete.role === "admin" && userToDelete.status === "active") {
+      const otherAdmins = await countActiveAdmins(id);
+      if (otherAdmins === 0) {
+        throw new Error("\u0644\u0627 \u064A\u0645\u0643\u0646 \u062D\u0630\u0641 \u0627\u0644\u0645\u0634\u0631\u0641 \u0627\u0644\u0648\u062D\u064A\u062F \u0627\u0644\u0646\u0634\u0637 \u0641\u064A \u0627\u0644\u0645\u0646\u0638\u0648\u0645\u0629 \u0644\u0636\u0645\u0627\u0646 \u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629 \u0644\u0648\u062D\u0629 \u0627\u0644\u062A\u062D\u0643\u0645.");
+      }
+    }
+    const filtered = local.filter((u) => u.id !== id);
     saveLocalUsers(filtered);
     return;
   }
   invalidateUserGoogleCache(id);
   const tableName = env.supabaseTableName;
+  const { data: targetUser } = await client.from(tableName).select("role, status").eq("id", id).maybeSingle();
+  if (targetUser && targetUser.role === "admin" && targetUser.status === "active") {
+    const otherAdmins = await countActiveAdmins(id);
+    if (otherAdmins === 0) {
+      throw new Error("\u0644\u0627 \u064A\u0645\u0643\u0646 \u062D\u0630\u0641 \u0627\u0644\u0645\u0634\u0631\u0641 \u0627\u0644\u0648\u062D\u064A\u062F \u0627\u0644\u0646\u0634\u0637 \u0641\u064A \u0627\u0644\u0645\u0646\u0638\u0648\u0645\u0629 \u0644\u0636\u0645\u0627\u0646 \u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629 \u0644\u0648\u062D\u0629 \u0627\u0644\u062A\u062D\u0643\u0645.");
+    }
+  }
   const { error } = await client.from(tableName).delete().eq("id", id);
   if (error) {
     logger.error({ error, id }, "Failed to delete user from Supabase");
@@ -52917,6 +52955,26 @@ async function deleteSupabaseUser(id) {
 }
 async function updateSupabaseUser(id, input) {
   const client = getSupabaseClient();
+  if (input.role === "staff" || input.status === "suspended") {
+    let isCurrentlyActiveAdmin = false;
+    if (!client) {
+      const local = loadLocalUsers();
+      const user = local.find((u) => u.id === id);
+      isCurrentlyActiveAdmin = user?.role === "admin" && user?.status === "active";
+    } else {
+      const tableName2 = env.supabaseTableName;
+      const { data: user } = await client.from(tableName2).select("role, status").eq("id", id).maybeSingle();
+      isCurrentlyActiveAdmin = user?.role === "admin" && user?.status === "active";
+    }
+    if (isCurrentlyActiveAdmin) {
+      const remainingAdmins = await countActiveAdmins(id);
+      if (remainingAdmins === 0) {
+        throw new Error(
+          input.role === "staff" ? "\u0644\u0627 \u064A\u0645\u0643\u0646 \u062A\u0646\u0632\u064A\u0644 \u0635\u0644\u0627\u062D\u064A\u0629 \u0627\u0644\u0645\u0634\u0631\u0641 \u0627\u0644\u0648\u062D\u064A\u062F \u0627\u0644\u0646\u0634\u0637 \u0625\u0644\u0649 \u0645\u062D\u0627\u0645\u064D. \u064A\u062C\u0628 \u062A\u0639\u064A\u064A\u0646 \u0645\u0634\u0631\u0641 \u0622\u062E\u0631 \u0623\u0648\u0644\u0627\u064B." : "\u0644\u0627 \u064A\u0645\u0643\u0646 \u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0645\u0634\u0631\u0641 \u0627\u0644\u0648\u062D\u064A\u062F \u0627\u0644\u0646\u0634\u0637 \u0641\u064A \u0627\u0644\u0645\u0646\u0638\u0648\u0645\u0629. \u064A\u062C\u0628 \u0623\u0646 \u064A\u062A\u0648\u0641\u0631 \u0645\u0634\u0631\u0641 \u0641\u0639\u0651\u0627\u0644 \u0622\u062E\u0631 \u0623\u0648\u0644\u0627\u064B."
+        );
+      }
+    }
+  }
   if (!client) {
     const local = loadLocalUsers();
     const index = local.findIndex((u) => u.id === id);
@@ -82156,11 +82214,11 @@ function buildSettingsResponse(s) {
     supabaseTableName: s.supabaseTableName ?? "app_users"
   };
 }
-router6.get("/settings", attachAuthUser, requireAuth, (_req, res) => {
+router6.get("/settings", attachAuthUser, requireAdmin, (_req, res) => {
   const s = getSettings();
   res.json(buildSettingsResponse(s));
 });
-router6.put("/settings", attachAuthUser, requireAuth, (req, res) => {
+router6.put("/settings", attachAuthUser, requireAdmin, (req, res) => {
   const parsed = parseBody(req.body);
   if (!parsed.ok) {
     res.status(400).json({ error: "Invalid settings payload." });
@@ -82175,7 +82233,7 @@ router6.put("/settings", attachAuthUser, requireAuth, (req, res) => {
     res.status(500).json({ error: "\u0641\u0634\u0644 \u062D\u0641\u0638 \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A." });
   }
 });
-router6.post("/settings/test-whatsapp", attachAuthUser, requireAuth, async (_req, res) => {
+router6.post("/settings/test-whatsapp", attachAuthUser, requireAdmin, async (_req, res) => {
   const s = getSettings();
   if (!s.whatsappNumber?.trim()) {
     res.status(400).json({ error: "\u064A\u0631\u062C\u0649 \u0643\u062A\u0627\u0628\u0629 \u0631\u0642\u0645 \u0627\u0644\u0648\u0627\u062A\u0633\u0627\u0628 \u0648\u062A\u062D\u062F\u064A\u062F \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A \u0623\u0648\u0644\u0627\u064B." });
@@ -82980,7 +83038,7 @@ init_supabase_service();
 init_env();
 init_logger();
 var router12 = (0, import_express12.Router)();
-router12.use(attachAuthUser, requireAuth);
+router12.use(attachAuthUser, requireAdmin);
 router12.get("/users", async (_req, res) => {
   try {
     const isConfigured = isSupabaseConfigured();

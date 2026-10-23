@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { GlobalSearch } from './global-search';
 
-const navigation = [
+const baseNavigation = [
   { name: 'لوحة التحكم', path: '/', icon: LayoutDashboard },
   { name: 'تحليل رسالة', path: '/chat', icon: MessageSquare },
   { name: 'جميع الجلسات', path: '/sessions', icon: Calendar },
@@ -14,7 +14,11 @@ const navigation = [
   { name: 'الوكالات', path: '/poa', icon: ShieldCheck },
   { name: 'الأحكام', path: '/judgments', icon: Gavel },
   { name: 'المهام', path: '/tasks', icon: CheckSquare },
-  { name: 'الإعدادات', path: '/settings', icon: Settings },
+];
+
+const adminNavigation = [
+  { name: 'بوابة المشرف العام', path: '/admin', icon: Shield },
+  { name: 'إعدادات النظام', path: '/settings', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -98,7 +102,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           القائمة الرئيسية
         </p>
 
-        {navigation.map((item) => {
+        {(user?.role === 'admin' ? [...baseNavigation, ...adminNavigation] : baseNavigation).map((item) => {
           const isActive = location === item.path;
           const Icon = item.icon;
 

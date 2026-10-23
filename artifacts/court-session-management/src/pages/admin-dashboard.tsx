@@ -457,6 +457,9 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleSaveSupabaseConfig = handleSaveSupabaseSettings;
+  const savingConfig = savingSupabase;
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUser.username.trim() || !newUser.password.trim()) {
@@ -1516,7 +1519,7 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
                   <span>بيانات الاتصال ومفتاح الصلاحية المرتفعة</span>
                 </h3>
 
-                <form onSubmit={handleSaveSupabaseConfig} className="space-y-4">
+                <form onSubmit={handleSaveSupabaseSettings} className="space-y-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="supabase_url_input" className="text-xs font-semibold">
                       رابط مشروع Supabase (Project URL) *
@@ -1536,7 +1539,7 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="supabase_key_input" className="text-xs font-semibold">
-                        مفتاح الخدمة السري (Service Role / Secret Key) *
+                        مفتاح الخدمة السري (Service Role / Secret Key) {supabaseKeyIsSet ? '(محفوظ ومحمي)' : '*'}
                       </Label>
                       <button
                         type="button"
@@ -1552,12 +1555,12 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
                       <Input
                         id="supabase_key_input"
                         type={showSupabaseKey ? 'text' : 'password'}
-                        placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                        placeholder={supabaseKeyIsSet ? "المفتاح السري محفوظ ومحمي في الخادم (اتركه فارغاً للإبقاء عليه)..." : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}
                         value={supabaseKey}
                         onChange={(e) => setSupabaseKey(e.target.value)}
                         className="font-mono text-xs pe-10"
                         dir="ltr"
-                        required
+                        required={!supabaseKeyIsSet}
                       />
                     </div>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -1586,12 +1589,12 @@ ${handoverData.subscriptionEndDate ? `تاريخ الانتهاء: ${handoverDat
                   <div className="pt-2">
                     <Button
                       type="submit"
-                      disabled={savingConfig}
+                      disabled={savingSupabase}
                       className="w-full text-xs text-white gap-2"
                       style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)' }}
                     >
                       <Save className="w-4 h-4" />
-                      <span>{savingConfig ? 'جارٍ حفظ الإعدادات...' : 'حفظ إعدادات الربط بقاعدة البيانات'}</span>
+                      <span>{savingSupabase ? 'جارٍ حفظ الإعدادات...' : 'حفظ إعدادات الربط بقاعدة البيانات'}</span>
                     </Button>
                   </div>
                 </form>
